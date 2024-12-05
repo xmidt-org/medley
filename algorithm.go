@@ -2,86 +2,33 @@ package medley
 
 import (
 	"hash"
-	"hash/fnv"
-	"strings"
+	"unsafe"
 
 	"github.com/spaolacci/murmur3"
 )
 
-const (
-	// AlgorithmFNV is the configuration value for an fnv.New64a algorithm
-	AlgorithmFNV = "fnv"
+// Algorithm represents a hash algorithm. This interface defines the
+// hash behavior required by medley.
+type Algorithm interface {
+	// New64 creates a new 64-bit hasher.
+	New64() hash.Hash64
 
-	// AlgorithmMurmur3 is the configuration value for a murmur3.New64 algorithm
-	AlgorithmMurmur3 = "murmur3"
-)
-
-// UnknownAlgorithmError indicates that no algorithm could be created using
-// the given Name
-type UnknownAlgorithmError struct {
-	// Name is the name which is unrecognized.  This will never be blank,
-	// as a blank name is interpreted as AlgorithmDefault.
-	Name string
+	// Sum64 hashes the given bytes into a 64-bit integer.
+	Sum64([]byte) uint64
 }
 
-// Error fulfills the error interface
-func (e *UnknownAlgorithmError) Error() string {
-	var o strings.Builder
-	o.WriteString(" algorithm with name: ")
-	o.WriteString(e.Name)
-	return o.String()
-}
+// Murmur3 provides the murmur3 hash algorithm. The specific implementation
+// is github.com/spaolacci/murmur3. This is the default underlying hashing
+// algorithm used for medley.
+type Murmur3 struct{}
 
-// Algorithm is a constructor for a 64-bit hash object.  The various NewXXX function
-// in the stdlib hash subpackages are of this type.
-type Algorithm func() hash.Hash64
+func (Murmur3) New64() hash.Hash64    { return murmur3.New64() }
+func (Murmur3) Sum64(v []byte) uint64 { return murmur3.Sum64(v) }
 
-// DefaultAlgorithm returns the Algorithm to be used when none is supplied or configured.
-// Currently, this package defaults to github.com/spaolacci/murmur3.
-func DefaultAlgorithm() Algorithm {
-	return murmur3.New64
-}
-
-var builtinAlgorithms = map[string]Algorithm{
-	"fnv":     fnv.New64a,
-	"murmur3": murmur3.New64,
-}
-
-// findAlgorithm first consults builtinAlgorithms, then the extensions, for the named algorithm.
-// If name is empty, DefaultAlgorithm() is returned.
-func findAlgorithm(name string, extensions map[string]Algorithm) (alg Algorithm, err error) {
-	if len(name) > 0 {
-		var found bool
-		alg, found = builtinAlgorithms[name]
-		if !found {
-			alg, found = extensions[name]
-		}
-
-		if !found {
-			err = &UnknownAlgorithmError{Name: name}
-		}
-	} else {
-		alg = DefaultAlgorithm()
-	}
-
-	return
-}
-
-// GetAlgorithm accepts a configured name and attempts to locate the built-in algorithm
-// associated with that name.  If name is empty, DefaultAlgorithm() is returned.
-//
-// This function will return an error of type *UnknownAlgorithmError if no such algorithm
-// was found.
-func GetAlgorithm(name string) (Algorithm, error) {
-	return findAlgorithm(name, nil)
-}
-
-// FindAlgorithm accepts a configured name and attempts to locate the appropriate Algorithm.
-// The set of built-in algorithms is consulted first, followed by the extensions (if supplied).
-// The set of extensions can be nil.  If name is empty, DefaultAlgorithm() is returned.
-//
-// This function will return an error of type *UnknownAlgorithmError if no such algorithm
-// was found.
-func FindAlgorithm(name string, extensions map[string]Algorithm) (Algorithm, error) {
-	return findAlgorithm(name, extensions)
+// HashString produces the hash of a string without performing extra
+// allocations.
+func HashString(v string, alg Algorithm) uint64 {
+	return alg.Sum64(
+		unsafe.Slice(unsafe.StringData(v), len(v)),
+	)
 }
