@@ -29,12 +29,9 @@ type MultiLocator[S Service] []Locator[S]
 func (ml MultiLocator[S]) Find(object string) ([]S, error) {
 	services := make([]S, 0, len(ml))
 	for _, l := range ml {
-		svc, findErr := l.Find(object)
-		switch {
-		case findErr == nil:
+		if svc, findErr := l.Find(object); findErr == nil {
 			services = append(services, svc)
-
-		case !errors.Is(findErr, ErrNoServices):
+		} else if !errors.Is(findErr, ErrNoServices) {
 			return nil, findErr
 		}
 	}

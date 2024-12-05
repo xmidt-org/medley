@@ -50,12 +50,7 @@ func (s hasher[S]) serviceNodes(svc S) (snodes nodes[S]) {
 		h.Write(prefix)
 		h.Write(base)
 
-		snodes = append(snodes,
-			&node[S]{
-				token:   h.Sum64(),
-				service: svc,
-			},
-		)
+		snodes = snodes.append(h.Sum64(), svc)
 	}
 
 	return

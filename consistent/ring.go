@@ -27,6 +27,16 @@ func (ns nodes[S]) Swap(i, j int) {
 	ns[i], ns[j] = ns[j], ns[i]
 }
 
+func (ns nodes[S]) append(token uint64, service S) nodes[S] {
+	return append(ns,
+		&node[S]{token: token, service: service},
+	)
+}
+
+func (ns nodes[S]) appendAll(more nodes[S]) nodes[S] {
+	return append(ns, more...)
+}
+
 // sort sorts this set of nodes by token.
 func (ns nodes[S]) sort() {
 	sort.Sort(ns)

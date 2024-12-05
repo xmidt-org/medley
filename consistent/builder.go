@@ -12,15 +12,15 @@ const (
 
 // Builder is a fluent builder for hash Rings. This type can be used
 // through normal instantiation or by starting a build chain with
-// the Build function.
+// the Services function.
 type Builder[S medley.Service] struct {
 	hasher   hasher[S]
 	services medley.ServiceSet[S]
 }
 
-// Build starts a fluent chain to initialize a Ring.
+// Services starts a fluent chain to initialize a Ring.
 // More services can be added via the builder's Services method.
-func Build[S medley.Service](services ...S) *Builder[S] {
+func Services[S medley.Service](services ...S) *Builder[S] {
 	b := new(Builder[S])
 	return b.Services(services...)
 }
@@ -101,7 +101,7 @@ func (b *Builder[S]) Build() *Ring[S] {
 	for svc := range b.services {
 		snodes := hasher.serviceNodes(svc)
 		r.services[svc] = snodes
-		r.nodes = append(r.nodes, snodes...)
+		r.nodes = r.nodes.appendAll(snodes)
 	}
 
 	r.nodes.sort()
