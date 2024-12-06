@@ -27,21 +27,6 @@ func (ns nodes[S]) Swap(i, j int) {
 	ns[i], ns[j] = ns[j], ns[i]
 }
 
-func (ns nodes[S]) append(token uint64, service S) nodes[S] {
-	return append(ns,
-		&node[S]{token: token, service: service},
-	)
-}
-
-func (ns nodes[S]) appendAll(more nodes[S]) nodes[S] {
-	return append(ns, more...)
-}
-
-// sort sorts this set of nodes by token.
-func (ns nodes[S]) sort() {
-	sort.Sort(ns)
-}
-
 // serviceNodes holds nodes calculated for each service.
 type serviceNodes[S medley.Service] map[S]nodes[S]
 
@@ -126,7 +111,7 @@ func (r *Ring[S]) nearest(target uint64) *node[S] {
 func Update[S medley.Service](current *Ring[S], services ...S) (next *Ring[S], updated bool) {
 	var (
 		currentServices = make(serviceNodes[S])
-		newServices     = make(medley.ServiceSet[S])
+		newServices     = make(medley.Set[S])
 	)
 
 	for _, svc := range services {
@@ -156,7 +141,7 @@ func Update[S medley.Service](current *Ring[S], services ...S) (next *Ring[S], u
 			next.nodes = append(next.nodes, snodes...)
 		}
 
-		next.nodes.sort()
+		sort.Sort(next.nodes)
 	} else {
 		next = current
 	}

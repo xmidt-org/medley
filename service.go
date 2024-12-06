@@ -34,20 +34,6 @@ func DefaultServiceHasher[S Service](dst io.Writer, service S) error {
 	return err
 }
 
-// HashableService is a type of Service that implements io.WriterTo. Services of this
-// type essentially know how to hash themselves. Typically, custom structs will be
-// of this type.
-type HashableService interface {
-	Service
-	io.WriterTo
-}
-
-// HashServiceTo is a ServiceWriter for services that implement io.WriterTo.
-func HashServiceTo[WS HashableService](dst io.Writer, service WS) error {
-	_, err := service.WriteTo(dst)
-	return err
-}
-
 // StringService is a service whose underlying type is a string. Hostnames,
 // URLs, service locator ids, etc. are usually of this type.
 type StringService interface {
@@ -65,22 +51,22 @@ func HashStringTo[SS StringService](dst io.Writer, service SS) error {
 	return err
 }
 
-// ServiceSet is a collection of services. These services are implicitly deduped
+// Set is a collection of services. These services are implicitly deduped
 // as keys in a map.
-type ServiceSet[S Service] map[S]bool
+type Set[S Service] map[S]bool
 
 // Len returns the number of services in this set.
-func (set ServiceSet[S]) Len() int {
+func (set Set[S]) Len() int {
 	return len(set)
 }
 
 // Has tests if the given service is in this set.
-func (set ServiceSet[S]) Has(svc S) bool {
+func (set Set[S]) Has(svc S) bool {
 	return set[svc]
 }
 
 // Add adds several services to this set. Duplicates are ignored.
-func (set ServiceSet[S]) Add(services ...S) {
+func (set Set[S]) Add(services ...S) {
 	for _, svc := range services {
 		set[svc] = true
 	}

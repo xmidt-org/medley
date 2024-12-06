@@ -27,7 +27,7 @@ func (Murmur3) Sum64(v []byte) uint64 { return murmur3.Sum64(v) }
 
 // HashString produces the hash of a string without performing extra
 // allocations.
-func HashString(v string, alg Algorithm) uint64 {
+func HashString(alg Algorithm, v string) uint64 {
 	return alg.Sum64(
 		unsafe.Slice(unsafe.StringData(v), len(v)),
 	)

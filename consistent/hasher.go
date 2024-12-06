@@ -50,7 +50,7 @@ func (s hasher[S]) serviceNodes(svc S) (snodes nodes[S]) {
 		h.Write(prefix)
 		h.Write(base)
 
-		snodes = snodes.append(h.Sum64(), svc)
+		snodes = append(snodes, &node[S]{token: h.Sum64(), service: svc})
 	}
 
 	return
@@ -58,5 +58,5 @@ func (s hasher[S]) serviceNodes(svc S) (snodes nodes[S]) {
 
 // hashString uses this sequence's configuration to hash the given string.
 func (s hasher[S]) hashString(object string) uint64 {
-	return medley.HashString(object, s.alg)
+	return medley.HashString(s.alg, object)
 }

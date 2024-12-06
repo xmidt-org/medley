@@ -1,6 +1,8 @@
 package consistent
 
 import (
+	"sort"
+
 	"github.com/xmidt-org/medley"
 )
 
@@ -15,7 +17,7 @@ const (
 // the Services function.
 type Builder[S medley.Service] struct {
 	hasher   hasher[S]
-	services medley.ServiceSet[S]
+	services medley.Set[S]
 }
 
 // Services starts a fluent chain to initialize a Ring.
@@ -23,6 +25,14 @@ type Builder[S medley.Service] struct {
 func Services[S medley.Service](services ...S) *Builder[S] {
 	b := new(Builder[S])
 	return b.Services(services...)
+}
+
+// Strings starts a fluent chain for a Ring whose service object's
+// underlying type is a string. This function sets the ServicehHasher
+// appropriately.
+func Strings[S medley.StringService](services ...S) *Builder[S] {
+	b := new(Builder[S])
+	return b.Services(services...).ServiceHasher(medley.HashStringTo[S])
 }
 
 // VNodes sets the number of hash nodes used per service. By default,
@@ -55,7 +65,7 @@ func (b *Builder[S]) ServiceHasher(sh medley.ServiceHasher[S]) *Builder[S] {
 // When Build is called, the set of services known to this builder is reset.
 func (b *Builder[S]) Services(services ...S) *Builder[S] {
 	if b.services == nil {
-		b.services = make(medley.ServiceSet[S], len(services))
+		b.services = make(medley.Set[S], len(services))
 	}
 
 	for _, svc := range services {
@@ -101,10 +111,10 @@ func (b *Builder[S]) Build() *Ring[S] {
 	for svc := range b.services {
 		snodes := hasher.serviceNodes(svc)
 		r.services[svc] = snodes
-		r.nodes = r.nodes.appendAll(snodes)
+		r.nodes = append(r.nodes, snodes...)
 	}
 
-	r.nodes.sort()
+	sort.Sort(r.nodes)
 	b.services = nil
 	return r
 }
