@@ -2,6 +2,7 @@ package consistent
 
 import (
 	"hash/fnv"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -22,6 +23,7 @@ func (suite *BuilderSuite) testStringsDefault() {
 	services := []string{"service1", "service2", "service3"}
 	ring := Strings(services...).Build()
 	suite.Require().NotNil(ring)
+	suite.Require().True(sort.IsSorted(ring.nodes))
 
 	result, err := ring.Find(suite.object)
 	suite.NoError(err)
@@ -38,6 +40,7 @@ func (suite *BuilderSuite) testStringsCustom() {
 		Build()
 
 	suite.Require().NotNil(ring)
+	suite.Require().True(sort.IsSorted(ring.nodes))
 
 	result, err := ring.Find(suite.object)
 	suite.NoError(err)
@@ -53,6 +56,7 @@ func (suite *BuilderSuite) TestServices() {
 	services := []string{"service1", "service2", "service3"}
 	ring := Services(services...).Build()
 	suite.Require().NotNil(ring)
+	suite.Require().True(sort.IsSorted(ring.nodes))
 
 	result, err := ring.Find(suite.object)
 	suite.NoError(err)
@@ -68,6 +72,7 @@ func (suite *BuilderSuite) TestBasicServices() {
 
 	ring := BasicServices(services...).Build()
 	suite.Require().NotNil(ring)
+	suite.Require().True(sort.IsSorted(ring.nodes))
 
 	result, err := ring.Find(suite.object)
 	suite.NoError(err)
