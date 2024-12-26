@@ -6,47 +6,6 @@ import (
 	"github.com/xmidt-org/medley"
 )
 
-// node is a single hash node for a service.
-type node[S medley.Service] struct {
-	token   uint64
-	service S
-}
-
-// nodes is the Ring's primary storage.
-type nodes[S medley.Service] []*node[S]
-
-func (ns nodes[S]) Len() int {
-	return len(ns)
-}
-
-func (ns nodes[S]) Less(i, j int) bool {
-	return ns[i].token < ns[j].token
-}
-
-func (ns nodes[S]) Swap(i, j int) {
-	ns[i], ns[j] = ns[j], ns[i]
-}
-
-// serviceNodes holds nodes calculated for each service.
-type serviceNodes[S medley.Service] map[S]nodes[S]
-
-// Len returns the count of services in this map.
-func (sn serviceNodes[S]) Len() int {
-	return len(sn)
-}
-
-// addAll adds precomputed nodes to this map, and also appends each
-// service's nodes to slice of all nodes. the newly appended slice of
-// all nodes is returned.
-func (sn serviceNodes[S]) addAll(orig serviceNodes[S], all nodes[S]) nodes[S] {
-	for svc, snodes := range orig {
-		sn[svc] = snodes
-		all = append(all, snodes...)
-	}
-
-	return all
-}
-
 // Ring is a hash circle that distributes services randomly
 // along a circle. A Ring should be created through a Builder.
 //
@@ -59,17 +18,23 @@ func (sn serviceNodes[S]) addAll(orig serviceNodes[S], all nodes[S]) nodes[S] {
 // Rings are immutable once created. To handle an updated set of services,
 // use the Update function.
 type Ring[S medley.Service] struct {
-	hasher   hasher[S]
-	services serviceNodes[S]
-	nodes    nodes[S]
+	hasher hasher[S]
+
+	// cache holds each individual service's nodes.  This is used
+	// primarly to quickly rehash a ring, since we don't need to spend
+	// compute computing tokens that we've already computed.
+	cache medley.Map[S, nodes[S]]
+
+	// nodes is the ring's storage
+	nodes nodes[S]
 }
 
 // Find performs a hash on the given object and returns the nearest
 // service. If this ring is empty, this method returns medley.ErrNoServices.
-func (r *Ring[S]) Find(object string) (svc S, err error) {
+func (r *Ring[S]) Find(object []byte) (svc S, err error) {
 	if len(r.nodes) > 0 {
 		node := r.nearest(
-			r.hasher.hashString(object),
+			r.hasher.sum64(object),
 		)
 
 		svc = node.service
@@ -110,35 +75,30 @@ func (r *Ring[S]) nearest(target uint64) *node[S] {
 // The current Ring is not modified by this function.
 func Update[S medley.Service](current *Ring[S], services ...S) (next *Ring[S], updated bool) {
 	var (
-		currentServices = make(serviceNodes[S])
-		newServices     = make(medley.Set[S])
+		cache                   = make(medley.Map[S, nodes[S]], len(services))
+		nodes                   = make(nodes[S], 0, current.hasher.ringSize(len(services)))
+		newCount, existingCount int
 	)
 
-	for _, svc := range services {
-		if nodes, exists := current.services[svc]; exists {
-			currentServices[svc] = nodes
+	for update := range current.cache.Update(services...) {
+		if update.Exists {
+			existingCount++
+			cache[update.Service] = update.Value
+			nodes = append(nodes, update.Value...)
 		} else {
-			newServices.Add(svc)
+			newCount++
+			snodes := current.hasher.serviceNodes(update.Service)
+			cache[update.Service] = snodes
+			nodes = append(nodes, snodes...)
 		}
 	}
 
-	updated = (newServices.Len() != 0 || currentServices.Len() != current.services.Len())
+	updated = (newCount > 0 || existingCount != len(current.cache))
 	if updated {
-		newServiceCount := currentServices.Len() + newServices.Len()
 		next = &Ring[S]{
-			hasher:   current.hasher,
-			services: make(serviceNodes[S], newServiceCount),
-			nodes:    make(nodes[S], 0, current.hasher.totalCount(newServiceCount)),
-		}
-
-		// copy over the cached, previously computed nodes
-		next.nodes = next.services.addAll(currentServices, next.nodes)
-
-		// compute the necessary new nodes
-		for svc := range newServices {
-			snodes := next.hasher.serviceNodes(svc)
-			next.services[svc] = snodes
-			next.nodes = append(next.nodes, snodes...)
+			hasher: current.hasher,
+			cache:  cache,
+			nodes:  nodes,
 		}
 
 		sort.Sort(next.nodes)

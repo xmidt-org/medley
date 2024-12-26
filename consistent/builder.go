@@ -1,6 +1,7 @@
 package consistent
 
 import (
+	"reflect"
 	"sort"
 
 	"github.com/xmidt-org/medley"
@@ -15,24 +16,36 @@ const (
 // Builder is a fluent builder for hash Rings. This type can be used
 // through normal instantiation or by starting a build chain with
 // the Services function.
+//
+// A Builder is used to build a Ring from scratch. To create a Ring that
+// represents an updated set of services, use Update.
 type Builder[S medley.Service] struct {
 	hasher   hasher[S]
-	services medley.Set[S]
+	services medley.Map[S, bool]
 }
 
-// Services starts a fluent chain to initialize a Ring.
-// More services can be added via the builder's Services method.
+// Strings starts a fluent chain for a Ring whose service object's
+// underlying type is a string. This function sets the ServicehHasher
+// appropriately. More services can be added via the builder's Services method.
+func Strings[S medley.StringService](services ...S) *Builder[S] {
+	b := new(Builder[S])
+	return b.Services(services...).ServiceHasher(medley.HashStringTo[S])
+}
+
+// Services starts a fluent chain for a Ring for an arbitrary set of services.
+// More services may be added via the builder's Services method.
 func Services[S medley.Service](services ...S) *Builder[S] {
 	b := new(Builder[S])
 	return b.Services(services...)
 }
 
-// Strings starts a fluent chain for a Ring whose service object's
-// underlying type is a string. This function sets the ServicehHasher
-// appropriately.
-func Strings[S medley.StringService](services ...S) *Builder[S] {
-	b := new(Builder[S])
-	return b.Services(services...).ServiceHasher(medley.HashStringTo[S])
+// BasicServices starts a fluent chain for a Ring containing medley.BasicServices.
+// The ServiceHasher is initialized to medley.HashBasicServiceTo.
+//
+// More services may be added via the builder's Services method.
+func BasicServices(services ...medley.BasicService) *Builder[medley.BasicService] {
+	b := new(Builder[medley.BasicService])
+	return b.Services(services...).ServiceHasher(medley.HashBasicServiceTo)
 }
 
 // VNodes sets the number of hash nodes used per service. By default,
@@ -65,7 +78,7 @@ func (b *Builder[S]) ServiceHasher(sh medley.ServiceHasher[S]) *Builder[S] {
 // When Build is called, the set of services known to this builder is reset.
 func (b *Builder[S]) Services(services ...S) *Builder[S] {
 	if b.services == nil {
-		b.services = make(medley.Set[S], len(services))
+		b.services = make(medley.Map[S, bool], len(services))
 	}
 
 	for _, svc := range services {
@@ -83,8 +96,8 @@ func (b *Builder[S]) newHasher() (h hasher[S]) {
 		h.vnodes = DefaultVNodes
 	}
 
-	if h.alg == nil {
-		h.alg = medley.Murmur3{}
+	if reflect.ValueOf(h.alg).IsZero() {
+		h.alg = medley.DefaultAlgorithm()
 	}
 
 	if h.serviceHasher == nil {
@@ -103,14 +116,14 @@ func (b *Builder[S]) newHasher() (h hasher[S]) {
 func (b *Builder[S]) Build() *Ring[S] {
 	hasher := b.newHasher()
 	r := &Ring[S]{
-		hasher:   hasher,
-		services: make(serviceNodes[S], b.services.Len()),
-		nodes:    make(nodes[S], 0, hasher.totalCount(b.services.Len())),
+		hasher: hasher,
+		cache:  make(medley.Map[S, nodes[S]], b.services.Len()),
+		nodes:  make(nodes[S], 0, hasher.ringSize(b.services.Len())),
 	}
 
 	for svc := range b.services {
 		snodes := hasher.serviceNodes(svc)
-		r.services[svc] = snodes
+		r.cache[svc] = snodes
 		r.nodes = append(r.nodes, snodes...)
 	}
 
