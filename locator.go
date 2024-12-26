@@ -146,3 +146,23 @@ func (ul *UpdatableLocator[S]) Find(object []byte) (svc S, err error) {
 
 	return
 }
+
+// SetLocator sets the implementation for a given locator. This function better tolerates
+// decorators than simply casting to an UpdatableLocator.
+//
+// If u supplies a 'Set(Locator[S])' method, that is used to set the impl Locator
+// and this function returns true.
+//
+// Otherwise, this function does nothing and returns false.
+func SetLocator[S Service](u Locator[S], impl Locator[S]) bool {
+	type setter interface {
+		Set(Locator[S])
+	}
+
+	if s, ok := u.(setter); ok {
+		s.Set(impl)
+		return true
+	}
+
+	return false
+}
