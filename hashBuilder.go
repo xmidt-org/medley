@@ -92,6 +92,8 @@ func (hb *HashBuilder) CanReset() bool {
 
 // Reset resets the underlying io.Writer to its initial state. If the currently wrapped
 // io.Writer does not supply a Reset() method, this method does nothing.
+//
+// This method allows a HashBuilder and/or its underlying writer to be reused for multiple hashes.
 func (hb *HashBuilder) Reset() {
 	if hb.reset != nil {
 		hb.reset()
