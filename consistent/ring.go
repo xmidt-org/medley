@@ -24,7 +24,7 @@ type Ring[S medley.Service] struct {
 	hasher hasher[S]
 
 	// cache holds each individual service's nodes.  This is used
-	// primarly to quickly rehash a ring, since we don't need to spend
+	// primarily to quickly rehash a ring, since we don't need to spend
 	// compute computing tokens that we've already computed.
 	cache medley.Map[S, nodes[S]]
 

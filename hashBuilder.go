@@ -128,7 +128,7 @@ func (hb *HashBuilder) WriteString(v string) *HashBuilder {
 func (hb *HashBuilder) WriteUint8(v uint8) *HashBuilder {
 	if hb.err == nil {
 		var buf [1]byte
-		buf[0] = byte(v)
+		buf[0] = v
 		_, hb.err = hb.dst.Write(buf[:])
 	}
 

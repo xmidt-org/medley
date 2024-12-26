@@ -8,13 +8,12 @@ linters:
     - errorlint
     - funlen
     - goconst
-    - gosec
     - misspell
     - unconvert
     - prealloc
   disable:
+    - gosec
     - errcheck
-    - ineffassign
 
 issues:
   exclude-rules:
