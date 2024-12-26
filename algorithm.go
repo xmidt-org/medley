@@ -2,86 +2,58 @@ package medley
 
 import (
 	"hash"
-	"hash/fnv"
-	"strings"
+	"unsafe"
 
 	"github.com/spaolacci/murmur3"
 )
 
-const (
-	// AlgorithmFNV is the configuration value for an fnv.New64a algorithm
-	AlgorithmFNV = "fnv"
+// Algorithm represents a hash algorithm which medley can use to implement
+// service location.
+type Algorithm struct {
+	// New64 is the constructor for a Hash64 appropriate for this algorithm.
+	// This field is required. If this field is unset, methods on this
+	// Algorithm may panic.
+	New64 func() hash.Hash64
 
-	// AlgorithmMurmur3 is the configuration value for a murmur3.New64 algorithm
-	AlgorithmMurmur3 = "murmur3"
-)
-
-// UnknownAlgorithmError indicates that no algorithm could be created using
-// the given Name
-type UnknownAlgorithmError struct {
-	// Name is the name which is unrecognized.  This will never be blank,
-	// as a blank name is interpreted as AlgorithmDefault.
-	Name string
+	// Sum64 is this algorithm's simple function to compute a hash over a
+	// byte slice. For many algorithms, this function will be more efficient
+	// in simple cases.
+	//
+	// This field is not required. If not supplied, New64 will be used to
+	// create a hash of the given bytes.
+	Sum64 func([]byte) uint64
 }
 
-// Error fulfills the error interface
-func (e *UnknownAlgorithmError) Error() string {
-	var o strings.Builder
-	o.WriteString(" algorithm with name: ")
-	o.WriteString(e.Name)
-	return o.String()
-}
-
-// Algorithm is a constructor for a 64-bit hash object.  The various NewXXX function
-// in the stdlib hash subpackages are of this type.
-type Algorithm func() hash.Hash64
-
-// DefaultAlgorithm returns the Algorithm to be used when none is supplied or configured.
-// Currently, this package defaults to github.com/spaolacci/murmur3.
-func DefaultAlgorithm() Algorithm {
-	return murmur3.New64
-}
-
-var builtinAlgorithms = map[string]Algorithm{
-	"fnv":     fnv.New64a,
-	"murmur3": murmur3.New64,
-}
-
-// findAlgorithm first consults builtinAlgorithms, then the extensions, for the named algorithm.
-// If name is empty, DefaultAlgorithm() is returned.
-func findAlgorithm(name string, extensions map[string]Algorithm) (alg Algorithm, err error) {
-	if len(name) > 0 {
-		var found bool
-		alg, found = builtinAlgorithms[name]
-		if !found {
-			alg, found = extensions[name]
-		}
-
-		if !found {
-			err = &UnknownAlgorithmError{Name: name}
-		}
-	} else {
-		alg = DefaultAlgorithm()
+// Sumb64Bytes uses Sum64 to compute the hash of the given byte slice. If
+// the Sum64 field isn't set, New64 is used to create a Hash64 and write
+// the given bytes.
+func (alg Algorithm) Sum64Bytes(v []byte) uint64 {
+	if alg.Sum64 != nil {
+		return alg.Sum64(v)
 	}
 
-	return
+	h := alg.New64()
+	h.Write(v)
+	return h.Sum64()
 }
 
-// GetAlgorithm accepts a configured name and attempts to locate the built-in algorithm
-// associated with that name.  If name is empty, DefaultAlgorithm() is returned.
+// Sum64String creates the hash of a string in a way that doesn't create
+// unnecessary allocations.
 //
-// This function will return an error of type *UnknownAlgorithmError if no such algorithm
-// was found.
-func GetAlgorithm(name string) (Algorithm, error) {
-	return findAlgorithm(name, nil)
+// If Sum64 is set, that function is used to compute the hash. Otherwise,
+// New64 is used to create a Hash64 and write the string's bytes.
+func (alg Algorithm) Sum64String(v string) uint64 {
+	return alg.Sum64Bytes(
+		unsafe.Slice(unsafe.StringData(v), len(v)),
+	)
 }
 
-// FindAlgorithm accepts a configured name and attempts to locate the appropriate Algorithm.
-// The set of built-in algorithms is consulted first, followed by the extensions (if supplied).
-// The set of extensions can be nil.  If name is empty, DefaultAlgorithm() is returned.
-//
-// This function will return an error of type *UnknownAlgorithmError if no such algorithm
-// was found.
-func FindAlgorithm(name string, extensions map[string]Algorithm) (Algorithm, error) {
-	return findAlgorithm(name, extensions)
+// DefaultAlgorithm returns the default hash algorithm for medley.
+// The returned object uses the murmur3 algorithm. The specific
+// implementation is github.com/spaolacci/murmur3.
+func DefaultAlgorithm() Algorithm {
+	return Algorithm{
+		New64: murmur3.New64,
+		Sum64: murmur3.Sum64,
+	}
 }

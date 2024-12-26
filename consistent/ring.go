@@ -1,127 +1,110 @@
 package consistent
 
 import (
-	"errors"
 	"sort"
 
 	"github.com/xmidt-org/medley"
 )
 
-var (
-	// ErrEmpty indicates that a search operation was attempted over an empty hash
-	ErrEmpty = errors.New("no hash nodes defined")
-)
-
-// hashEntry is a tuple of hash information about a Node.  Hash entries
-// are typically assigned points on the unit circle by placing them into
-// a ring and sorting the ring.
-type hashEntry struct {
-	Node  medley.Node
-	Value uint64
-}
-
-// ring is a circle of hash entries, ordered by hash value and node comparison.
-// A ring implements sort.Interface.
-type ring []hashEntry
-
-// Len returns the number of hash entries in this ring
-func (r ring) Len() int {
-	return len(r)
-}
-
-// Less compares two hash entries in this ring.  The hash Values are compared
-// first.  If there is a collision, i.e. the two entries have the same Value,
-// then the Nodes are compared.
-func (r ring) Less(i, j int) bool {
-	ith, jth := r[i], r[j]
-	if ith.Value < jth.Value {
-		return true
-	} else if ith.Value == jth.Value {
-		return ith.Node < jth.Node
-	}
-
-	return false
-}
-
-// Swap swaps two hash entries in this ring
-func (r ring) Swap(i, j int) {
-	r[i], r[j] = r[j], r[i]
-}
-
-// grow ensures that ring has enough capacity for the given additional
-// hash entries.  Use this method prior to adding multiple hash entries
-// to reduce the number of allocations.
+// Ring is a hash circle that distributes services randomly
+// along a circle. A Ring should be created through a Builder.
 //
-// This method uses a similar algorithm to strings.Builder.  If more capacity
-// is needed, this method allocates even more capacity to keep the total number
-// of memory allocations as small as possible.
-func (r *ring) grow(n int) {
-	if cap(*r)-len(*r) < n {
-		larger := make([]hashEntry, len(*r), 2*cap(*r)+n)
-		copy(larger, *r)
-		*r = larger
-	}
+// A Ring is a valid medley.Locator, and can be used to find services
+// based on a consistent hash.
+//
+// The hash values for services are the same as github.com/billhathaway/consistentHash
+// for backward compatibility.
+//
+// Rings are immutable once created. To handle an updated set of services,
+// use the Update function.
+type Ring[S medley.Service] struct {
+	hasher hasher[S]
+
+	// cache holds each individual service's nodes.  This is used
+	// primarly to quickly rehash a ring, since we don't need to spend
+	// compute computing tokens that we've already computed.
+	cache medley.Map[S, nodes[S]]
+
+	// nodes is the ring's storage
+	nodes nodes[S]
 }
 
-// add appends a new hash entry.  This method does not re-sort the ring.
-func (r *ring) add(n medley.Node, v uint64) {
-	*r = append(*r, hashEntry{Node: n, Value: v})
-}
-
-// removeIf deletes all hash entries whose node matches the given predicate.
-// This method does not re-sort the ring.
-//
-// medley.NodeSet.Has can be passed to this method directly.
-func (r *ring) removeIf(p func(medley.Node) bool) {
-	end := len(*r) - 1
-	var pos int
-	for pos <= end {
-		if p((*r)[pos].Node) {
-			(*r)[pos], (*r)[end] = (*r)[end], (*r)[pos]
-			(*r)[end] = hashEntry{}
-			end--
-		} else {
-			pos++
-		}
-	}
-
-	*r = (*r)[0 : end+1]
-}
-
-// closest returns the Node closest to the given hash value by walking clockwise
-// from the given value v to the next node, wrapping around as necessary.
-//
-// This method returns an error if this ring is empty.
-//
-// See: https://pkg.go.dev/sort#Search
-func (r ring) closest(v uint64) (n medley.Node, err error) {
-	if len(r) > 0 {
-		p := sort.Search(len(r),
-			func(i int) bool {
-				return r[i].Value >= v
-			},
+// Find performs a hash on the given object and returns the nearest
+// service. If this ring is empty, this method returns medley.ErrNoServices.
+func (r *Ring[S]) Find(object []byte) (svc S, err error) {
+	if len(r.nodes) > 0 {
+		node := r.nearest(
+			r.hasher.sum64(object),
 		)
 
-		if p < len(r) {
-			n = r[p].Node
-		} else {
-			n = r[0].Node
-		}
+		svc = node.service
 	} else {
-		err = ErrEmpty
+		err = medley.ErrNoServices
 	}
 
 	return
 }
 
-// sort reorders the hash entries in this ring so that Search can do
-// a binary search.  This method should be called after any sequence of
-// operations that could modify the contents of the ring.
+// nearest returns the nearest node to the target hash value.
+func (r *Ring[S]) nearest(target uint64) *node[S] {
+	i := sort.Search(
+		r.nodes.Len(),
+		func(p int) bool {
+			return r.nodes[p].token >= target
+		},
+	)
+
+	if i >= r.nodes.Len() {
+		i = 0
+	}
+
+	return r.nodes[i]
+}
+
+// Update checks if a set of services constitutes an update to the given Ring.
 //
-// This is not a stable sort, though in practice that doesn't matter due
-// to the order property defined for HashEntry.
+// If the services slice is the same as the services already hashed by the current Ring, then
+// the current Ring is returned as is along with false to indicate that no update was necessary.
 //
-// See: https://pkg.go.dev/sort#Sort
-func (r ring) sort() {
-	sort.Sort(r)
+// If the services slice does represent an update, a new, distinct Ring is created with the same
+// hash configuration but containing the given services. If any services in the slice were already
+// hashed by the Ring, those points on the circle are copied over in order to reduce the total
+// time spent hashing. This method returns true in this case, to indicate that an update was
+// necessary.
+//
+// The current Ring is not modified by this function.
+func Update[S medley.Service](current *Ring[S], services ...S) (next *Ring[S], updated bool) {
+	var (
+		cache                   = make(medley.Map[S, nodes[S]], len(services))
+		nodes                   = make(nodes[S], 0, current.hasher.ringSize(len(services)))
+		newCount, existingCount int
+	)
+
+	for update := range current.cache.Update(services...) {
+		if update.Exists {
+			existingCount++
+			cache[update.Service] = update.Value
+			nodes = append(nodes, update.Value...)
+		} else {
+			newCount++
+			snodes := current.hasher.serviceNodes(update.Service)
+			cache[update.Service] = snodes
+			nodes = append(nodes, snodes...)
+		}
+	}
+
+	updated = (newCount > 0 || existingCount != len(current.cache))
+	if updated {
+		next = &Ring[S]{
+			hasher: current.hasher,
+			cache:  cache,
+			nodes:  nodes,
+		}
+
+		sort.Sort(next.nodes)
+	} else {
+		next = current
+	}
+
+	return
 }

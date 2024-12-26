@@ -2,105 +2,99 @@ package medley
 
 import (
 	"hash/fnv"
-	"strconv"
 	"testing"
 
 	"github.com/spaolacci/murmur3"
 	"github.com/stretchr/testify/suite"
 )
 
-type AlgorithmTestSuite struct {
+type AlgorithmSuite struct {
 	suite.Suite
+
+	hashInput string
+	expected  uint64
 }
 
-func (suite *AlgorithmTestSuite) TestGetAlgorithm() {
-	testData := []struct {
-		name      string
-		expectErr bool
-	}{
-		{
-			name:      "",
-			expectErr: false,
-		},
-		{
-			name:      AlgorithmFNV,
-			expectErr: false,
-		},
-		{
-			name:      AlgorithmMurmur3,
-			expectErr: false,
-		},
-		{
-			name:      "unknown",
-			expectErr: true,
-		},
-	}
-
-	for i, record := range testData {
-		suite.Run(strconv.Itoa(i), func() {
-			alg, err := GetAlgorithm(record.name)
-			suite.Equal(record.expectErr, alg == nil)
-			if err != nil {
-				suite.NotEmpty(err.Error())
-			}
-		})
-	}
+// sum64 is just a Sum64 function that runs the fnv hash
+func (suite *AlgorithmSuite) sum64(v []byte) uint64 {
+	hash := fnv.New64()
+	hash.Write(v)
+	return hash.Sum64()
 }
 
-func (suite *AlgorithmTestSuite) TestFindAlgorithm() {
-	testData := []struct {
-		name       string
-		extensions map[string]Algorithm
-		expectErr  bool
-	}{
-		{
-			name:       "",
-			extensions: nil,
-			expectErr:  false,
-		},
-		{
-			name:       AlgorithmMurmur3,
-			extensions: nil,
-			expectErr:  false,
-		},
-		{
-			name:       AlgorithmMurmur3,
-			extensions: map[string]Algorithm{AlgorithmMurmur3: murmur3.New64},
-			expectErr:  false,
-		},
-		{
-			name:       AlgorithmMurmur3,
-			extensions: map[string]Algorithm{"new": fnv.New64a},
-			expectErr:  false,
-		},
-		{
-			name:       "unknown",
-			extensions: nil,
-			expectErr:  true,
-		},
-		{
-			name:       "unknown",
-			extensions: map[string]Algorithm{"new": fnv.New64a},
-			expectErr:  true,
-		},
-		{
-			name:       "new",
-			extensions: map[string]Algorithm{"new": fnv.New64a},
-			expectErr:  false,
-		},
+func (suite *AlgorithmSuite) SetupTest() {
+	suite.hashInput = "test hash value"
+	suite.expected = suite.sum64([]byte(suite.hashInput))
+}
+
+func (suite *AlgorithmSuite) assertExpected(v uint64) {
+	suite.Equal(suite.expected, v)
+}
+
+func (suite *AlgorithmSuite) testSum64BytesUsingSum64() {
+	alg := Algorithm{
+		New64: fnv.New64,
+		Sum64: suite.sum64,
 	}
 
-	for i, record := range testData {
-		suite.Run(strconv.Itoa(i), func() {
-			alg, err := FindAlgorithm(record.name, record.extensions)
-			suite.Equal(record.expectErr, alg == nil)
-			if err != nil {
-				suite.NotEmpty(err.Error())
-			}
-		})
+	suite.assertExpected(
+		alg.Sum64Bytes([]byte(suite.hashInput)),
+	)
+}
+
+func (suite *AlgorithmSuite) testSum64BytesUsingNew64() {
+	alg := Algorithm{
+		New64: fnv.New64,
+		Sum64: nil,
 	}
+
+	suite.assertExpected(
+		alg.Sum64Bytes([]byte(suite.hashInput)),
+	)
+}
+
+func (suite *AlgorithmSuite) TestSum64Bytes() {
+	suite.Run("UsingSum64", suite.testSum64BytesUsingSum64)
+	suite.Run("UsingNew64", suite.testSum64BytesUsingNew64)
+}
+
+func (suite *AlgorithmSuite) testSum64StringUsingSum64() {
+	alg := Algorithm{
+		New64: fnv.New64,
+		Sum64: suite.sum64,
+	}
+
+	suite.assertExpected(
+		alg.Sum64String(suite.hashInput),
+	)
+}
+
+func (suite *AlgorithmSuite) testSum64StringUsingNew64() {
+	alg := Algorithm{
+		New64: fnv.New64,
+		Sum64: nil,
+	}
+
+	suite.assertExpected(
+		alg.Sum64String(suite.hashInput),
+	)
+}
+
+func (suite *AlgorithmSuite) TestSum64String() {
+	suite.Run("UsingSum64", suite.testSum64StringUsingSum64)
+	suite.Run("UsingNew64", suite.testSum64StringUsingNew64)
+}
+
+func (suite *AlgorithmSuite) TestDefaultAlgorithm() {
+	alg := DefaultAlgorithm()
+	suite.Require().NotNil(alg.New64)
+	suite.Require().NotNil(alg.Sum64)
+
+	expected := murmur3.Sum64([]byte(suite.hashInput))
+	suite.Equal(expected, alg.Sum64Bytes([]byte(suite.hashInput)))
+	suite.Equal(expected, alg.Sum64String(suite.hashInput))
 }
 
 func TestAlgorithm(t *testing.T) {
-	suite.Run(t, new(AlgorithmTestSuite))
+	suite.Run(t, new(AlgorithmSuite))
 }
