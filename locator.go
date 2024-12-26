@@ -10,7 +10,7 @@ import (
 var (
 	// ErrNoServices is returned by a Locator to indicate that the Locator contains
 	// no service entries.
-	ErrNoServices = errors.New("no services defined in this locator")
+	ErrNoServices = errors.New("no services defined")
 )
 
 // Locator is a service locator based on hashing input objects.
