@@ -7,6 +7,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/billhathaway/consistentHash"
 	"github.com/stretchr/testify/suite"
 	"github.com/xmidt-org/medley"
 )
@@ -100,6 +101,30 @@ func (suite *RingSuite) TestUpdate() {
 	suite.Run("Partial", suite.testUpdatePartial)
 	suite.Run("AllNew", suite.testUpdateAllNew)
 	suite.Run("NotNeeded", suite.testUpdateNotNeeded)
+}
+
+func (suite *RingSuite) TestBackwardCompatibility() {
+	ch := consistentHash.New()
+	ch.SetVnodeCount(DefaultVNodes)
+	for _, service := range suite.originalServices {
+		ch.Add(service)
+	}
+
+	var (
+		oldResult string
+		newResult string
+		err       error
+	)
+
+	for _, object := range hashObjects {
+		oldResult, err = ch.Get(object[:])
+		suite.Require().NoError(err)
+
+		newResult, err = suite.original.Find(object[:])
+		suite.Require().NoError(err)
+
+		suite.Equal(oldResult, newResult)
+	}
 }
 
 func TestRing(t *testing.T) {
