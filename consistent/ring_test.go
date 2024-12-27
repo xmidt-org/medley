@@ -4,51 +4,31 @@
 package consistent
 
 import (
-	"math/rand"
 	"sort"
 	"testing"
 
+	"github.com/billhathaway/consistentHash"
 	"github.com/stretchr/testify/suite"
 	"github.com/xmidt-org/medley"
 )
 
-const (
-	// objectSeed is the random number seed we use to create objects to hash
-	objectSeed int64 = 7245298734452934458
-
-	// objectCount is the number of random objects we generate for hash inputs
-	objectCount int = 1000
-)
-
 type RingSuite struct {
 	suite.Suite
-
-	rand    *rand.Rand
-	objects [objectCount][16]byte
 
 	originalServices []string
 	original         *Ring[string]
 }
 
 func (suite *RingSuite) SetupSuite() {
-	suite.rand = rand.New(
-		rand.NewSource(objectSeed),
-	)
-
-	for i := 0; i < len(suite.objects); i++ {
-		suite.rand.Read(suite.objects[i][:])
-	}
-
-	suite.originalServices = []string{
-		"original1.service.net", "original2.service.net", "original3.service.net", "original4.service.net",
-	}
+	// for the unit tests, we don't need all the services
+	suite.originalServices = services[0:4]
 
 	suite.original = Strings(suite.originalServices...).Build()
 	suite.Require().NotNil(suite.original)
 	suite.Require().True(sort.IsSorted(suite.original.nodes))
 
 	distribution := make(map[string]int)
-	for _, object := range suite.objects {
+	for _, object := range hashObjects {
 		result, err := suite.original.Find(object[:])
 		suite.Require().NoError(err)
 		suite.Require().Contains(suite.originalServices, result)
@@ -79,7 +59,7 @@ func (suite *RingSuite) testUpdateEmpty() {
 	suite.True(didUpdate)
 	suite.Empty(updated.nodes)
 
-	for _, object := range suite.objects {
+	for _, object := range hashObjects {
 		result, err := updated.Find(object[:])
 		suite.Empty(result)
 		suite.ErrorIs(err, medley.ErrNoServices)
@@ -91,7 +71,7 @@ func (suite *RingSuite) testUpdatePartial() {
 	updated, didUpdate := suite.update(partial...)
 	suite.True(didUpdate)
 
-	for _, object := range suite.objects {
+	for _, object := range hashObjects {
 		result, err := updated.Find(object[:])
 		suite.Contains(partial, result)
 		suite.NoError(err)
@@ -103,7 +83,7 @@ func (suite *RingSuite) testUpdateAllNew() {
 	updated, didUpdate := suite.update(allNew...)
 	suite.True(didUpdate)
 
-	for _, object := range suite.objects {
+	for _, object := range hashObjects {
 		result, err := updated.Find(object[:])
 		suite.Contains(allNew, result)
 		suite.NoError(err)
@@ -121,6 +101,30 @@ func (suite *RingSuite) TestUpdate() {
 	suite.Run("Partial", suite.testUpdatePartial)
 	suite.Run("AllNew", suite.testUpdateAllNew)
 	suite.Run("NotNeeded", suite.testUpdateNotNeeded)
+}
+
+func (suite *RingSuite) TestBackwardCompatibility() {
+	ch := consistentHash.New()
+	ch.SetVnodeCount(DefaultVNodes)
+	for _, service := range suite.originalServices {
+		ch.Add(service)
+	}
+
+	var (
+		oldResult string
+		newResult string
+		err       error
+	)
+
+	for _, object := range hashObjects {
+		oldResult, err = ch.Get(object[:])
+		suite.Require().NoError(err)
+
+		newResult, err = suite.original.Find(object[:])
+		suite.Require().NoError(err)
+
+		suite.Equal(oldResult, newResult)
+	}
 }
 
 func TestRing(t *testing.T) {
