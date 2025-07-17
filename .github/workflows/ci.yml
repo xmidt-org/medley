@@ -22,7 +22,6 @@ jobs:
   ci:
     uses: xmidt-org/shared-go/.github/workflows/ci.yml@788c9de035be5d5c99be5917c90355a3f3c2ff0c # v4.4.29
     with:
-      copyright-skip: false
       release-type:   library
       yaml-lint-skip: false
     secrets: inherit
