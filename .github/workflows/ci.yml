@@ -18,9 +18,14 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  pull-requests: read
+  contents: write
+  packages: write
+
 jobs:
   ci:
-    uses: xmidt-org/shared-go/.github/workflows/ci.yml@788c9de035be5d5c99be5917c90355a3f3c2ff0c # v4.4.29
+    uses: xmidt-org/shared-go/.github/workflows/ci.yml@aff0471aa7e2f96ddb059beb178f63747a7cc57e # v4.9.41
     with:
       release-type:   library
       yaml-lint-skip: false
