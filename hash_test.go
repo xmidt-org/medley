@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Comcast Cable Communications Management, LLC
+// SPDX-License-Identifier: Apache-2.0
+
 package medley
 
 import (
@@ -50,6 +53,13 @@ func (suite *HashTestSuite[HR]) TestConstructor() {
 	expected.Write(suite.testBytes)
 	actual.Write(suite.testBytes)
 	suite.Equal(expectedSum(), actual.Value())
+}
+
+func (suite *HashTestSuite[HR]) TestSum() {
+	expected, _, actual := suite.newTestHash()
+	expectedBytes := expected.Sum(suite.testBytes)
+	actualBytes := actual.Sum(suite.testBytes)
+	suite.Equal(expectedBytes, actualBytes)
 }
 
 func (suite *HashTestSuite[HR]) TestWrite() {
