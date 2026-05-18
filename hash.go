@@ -27,8 +27,9 @@ type Hash[HR HashResult] interface {
 	io.StringWriter
 	io.ByteWriter
 
-	// Value is the closure that retrieves the current hash value.
-	// It yields the same result as Sum32 or Sum64.
+	// Value is the method that returns Sum32 or Sum64, depending on the result type.
+	// This method normalizes the hash.Hash interface, removing the need to have separate
+	// code for hash.Hash32 and hash.Hash64.
 	Value() HR
 }
 
