@@ -64,6 +64,26 @@ func (suite *AlgorithmSuite[HR]) TestSumObject() {
 	suite.Equal(expected, actual)
 }
 
+// asSum32 returns a low-level 32-bit Sum function using a hash.Hash32.
+// Used for testing to get around: https://github.com/spaolacci/murmur3/issues/34
+func asSum32(ctor func() hash.Hash32) func([]byte) uint32 {
+	return func(b []byte) uint32 {
+		h := ctor()
+		h.Write(b)
+		return h.Sum32()
+	}
+}
+
+// asSum64 returns a low-level 32-bit Sum function using a hash.Hash32.
+// Used for testing to get around: https://github.com/spaolacci/murmur3/issues/34
+func asSum64(ctor func() hash.Hash64) func([]byte) uint64 {
+	return func(b []byte) uint64 {
+		h := ctor()
+		h.Write(b)
+		return h.Sum64()
+	}
+}
+
 func TestAlgorithm32(t *testing.T) {
 	t.Run("Default32", func(t *testing.T) {
 		suite.Run(t, &AlgorithmSuite[uint32]{
@@ -72,7 +92,10 @@ func TestAlgorithm32(t *testing.T) {
 				h := murmur3.New32()
 				return h, h.Sum32
 			},
-			sum: murmur3.Sum32,
+
+			// We can't use the murmur3.Sum32 function right now because of:
+			// https://github.com/spaolacci/murmur3/issues/34
+			sum: asSum32(murmur3.New32),
 		})
 	})
 
@@ -86,26 +109,32 @@ func TestAlgorithm32(t *testing.T) {
 				h := murmur3.New32()
 				return h, h.Sum32
 			},
-			sum: murmur3.Sum32,
+
+			// We can't use the murmur3.Sum32 function right now because of:
+			// https://github.com/spaolacci/murmur3/issues/34
+			sum: asSum32(murmur3.New32),
 		})
 	})
 
 	t.Run("NewAlgorithmNilConstructor", func(t *testing.T) {
 		assert.Panics(t, func() {
-			NewAlgorithm[uint32](nil, murmur3.Sum32)
+			NewAlgorithm(nil, murmur3.Sum32)
 		})
 	})
 }
 
 func TestAlgorithm64(t *testing.T) {
-	t.Run("Default32", func(t *testing.T) {
+	t.Run("Default64", func(t *testing.T) {
 		suite.Run(t, &AlgorithmSuite[uint64]{
 			ctor: Default64,
 			testHash: func() (expected hash.Hash, expectedSum func() uint64) {
 				h := murmur3.New64()
 				return h, h.Sum64
 			},
-			sum: murmur3.Sum64,
+
+			// We can't use the murmur3.Sum32 function right now because of:
+			// https://github.com/spaolacci/murmur3/issues/34
+			sum: asSum64(murmur3.New64),
 		})
 	})
 
@@ -119,13 +148,16 @@ func TestAlgorithm64(t *testing.T) {
 				h := murmur3.New64()
 				return h, h.Sum64
 			},
-			sum: murmur3.Sum64,
+
+			// We can't use the murmur3.Sum32 function right now because of:
+			// https://github.com/spaolacci/murmur3/issues/34
+			sum: asSum64(murmur3.New64),
 		})
 	})
 
 	t.Run("NewAlgorithmNilConstructor", func(t *testing.T) {
 		assert.Panics(t, func() {
-			NewAlgorithm[uint64](nil, murmur3.Sum64)
+			NewAlgorithm(nil, murmur3.Sum64)
 		})
 	})
 }

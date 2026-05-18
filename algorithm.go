@@ -8,6 +8,16 @@ import (
 	"github.com/xmidt-org/medley/internal"
 )
 
+// asSum produces a SumXX() function using a constructor. Useful when no package-level
+// SumXX() function is provided.
+func asSum[HR HashResult](ctor func() Hash[HR]) func([]byte) HR {
+	return func(b []byte) HR {
+		h := ctor()
+		h.Write(b)
+		return h.Value()
+	}
+}
+
 // Algorithm is a hashing algorithm used by medley. An Algorithm is immutable and safe
 // for concurrent use.
 //
@@ -62,38 +72,36 @@ func NewAlgorithm[HR HashResult](ctor func() Hash[HR], sum func([]byte) HR) *Alg
 	}
 
 	if alg.sum == nil {
-		alg.sum = func(b []byte) HR {
-			h := alg.ctor()
-			h.Write(b)
-			return h.Value()
-		}
+		alg.sum = asSum(ctor)
 	}
 
 	return alg
 }
 
-var murmur3Algorithms = struct {
-	alg32 *Algorithm[uint32]
-	alg64 *Algorithm[uint64]
-}{
-	alg32: NewAlgorithm(
-		AsConstructor32(murmur3.New32),
-		murmur3.Sum32,
-	),
-	alg64: NewAlgorithm(
-		AsConstructor64(murmur3.New64),
-		murmur3.Sum64,
-	),
-}
+var default32 = NewAlgorithm(
+	AsConstructor32(murmur3.New32),
+
+	// We can't use the murmur3.Sum32 function right now because of:
+	// https://github.com/spaolacci/murmur3/issues/34
+	nil,
+)
+
+var default64 = NewAlgorithm(
+	AsConstructor64(murmur3.New64),
+
+	// We can't use the murmur3.Sum32 function right now because of:
+	// https://github.com/spaolacci/murmur3/issues/34
+	nil,
+)
 
 // Default32 returns medley's default 32-bit hashing algorithm, which is 32-bit murmur3
 // with the default seed.
 func Default32() *Algorithm[uint32] {
-	return murmur3Algorithms.alg32
+	return default32
 }
 
 // Default64 returns medley's default 64-bit hashing algorithm, which is 64-bit murmur3
 // with the default seed.
 func Default64() *Algorithm[uint64] {
-	return murmur3Algorithms.alg64
+	return default64
 }
