@@ -91,10 +91,12 @@ func BenchmarkMedleyRingCreationNoExpectedValues(b *testing.B) {
 func BenchmarkConsistentHashCreation(b *testing.B) {
 	for _, benchmarkCase := range benchmarkCases {
 		b.Run(benchmarkCase.name, func(b *testing.B) {
-			ch := consistentHash.New()
-			ch.SetVnodeCount(benchmarkCase.vnodes)
-
 			for b.Loop() {
+				// apple-to-apples:
+				// the Builder.Build does what this code does
+				ch := consistentHash.New()
+				ch.SetVnodeCount(benchmarkCase.vnodes)
+
 				for _, hostName := range benchmarkCase.hostNames {
 					ch.Add(hostName)
 				}
