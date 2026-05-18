@@ -1,62 +1,99 @@
-// SPDX-FileCopyrightText: 2025 Comcast Cable Communications Management, LLC
+// SPDX-FileCopyrightText: 2026 Comcast Cable Communications Management, LLC
 // SPDX-License-Identifier: Apache-2.0
 
 package medley
 
 import (
-	"hash"
-	"unsafe"
-
 	"github.com/spaolacci/murmur3"
+	"github.com/xmidt-org/medley/internal"
 )
 
-// Algorithm represents a hash algorithm which medley can use to implement
-// service location.
-type Algorithm struct {
-	// New64 is the constructor for a Hash64 appropriate for this algorithm.
-	// This field is required. If this field is unset, methods on this
-	// Algorithm may panic.
-	New64 func() hash.Hash64
-
-	// Sum64 is this algorithm's simple function to compute a hash over a
-	// byte slice. For many algorithms, this function will be more efficient
-	// in simple cases.
-	//
-	// This field is not required. If not supplied, New64 will be used to
-	// create a hash of the given bytes.
-	Sum64 func([]byte) uint64
-}
-
-// Sumb64Bytes uses Sum64 to compute the hash of the given byte slice. If
-// the Sum64 field isn't set, New64 is used to create a Hash64 and write
-// the given bytes.
-func (alg Algorithm) Sum64Bytes(v []byte) uint64 {
-	if alg.Sum64 != nil {
-		return alg.Sum64(v)
-	}
-
-	h := alg.New64()
-	h.Write(v)
-	return h.Sum64()
-}
-
-// Sum64String creates the hash of a string in a way that doesn't create
-// unnecessary allocations.
+// Algorithm is a hashing algorithm used by medley. An Algorithm is immutable and safe
+// for concurrent use.
 //
-// If Sum64 is set, that function is used to compute the hash. Otherwise,
-// New64 is used to create a Hash64 and write the string's bytes.
-func (alg Algorithm) Sum64String(v string) uint64 {
-	return alg.Sum64Bytes(
-		unsafe.Slice(unsafe.StringData(v), len(v)),
+// The zero value for this type is invalid. Use NewAlgorithm to create an Algorithm.
+type Algorithm[HR HashResult] struct {
+	ctor func() Hash[HR]
+	sum  func([]byte) HR
+}
+
+// New constructs a Hash object that can be used exactly like a hash.Hash.
+func (alg *Algorithm[HR]) New() Hash[HR] {
+	return alg.ctor()
+}
+
+// Sum produces a hash of a sequence of bytes. Most algorithms provide a a sum function
+// that avoids some overhead of using the Hash32.
+func (alg *Algorithm[HR]) Sum(b []byte) HR {
+	return alg.sum(b)
+}
+
+// SumString produces a sum for a string. The string's bytes are obtained without
+// a reallocation.
+func (alg *Algorithm[HR]) SumString(v string) HR {
+	return alg.sum(
+		internal.UnsafeBytes(v),
 	)
 }
 
-// DefaultAlgorithm returns the default hash algorithm for medley.
-// The returned object uses the murmur3 algorithm. The specific
-// implementation is github.com/spaolacci/murmur3.
-func DefaultAlgorithm() Algorithm {
-	return Algorithm{
-		New64: murmur3.New64,
-		Sum64: murmur3.Sum64,
+// SumObject returns the Sum of an object.
+func (alg *Algorithm[HR]) SumObject(obj Object) HR {
+	return alg.sum(obj.b)
+}
+
+// NewAlgorithm constructs a medley algorithm of a particular result size. Algorithms are immutable
+// and safe for concurrent access.
+//
+// The ctor function is required, and if not supplied this function immediately panics.
+// Use the AsConstructor32 and AsConstructor64 functions to convert constructors in
+// other packages, e.g. crc32.NewIEEE.
+//
+// The sum function is optional. Most hash packages provide a function with this signature
+// to allow hashing a sequence of bytes without the overhead of constructing a Hash. If this
+// sum function is nil, the returned Algorithm uses a sum function built in terms of the ctor.
+func NewAlgorithm[HR HashResult](ctor func() Hash[HR], sum func([]byte) HR) *Algorithm[HR] {
+	if ctor == nil {
+		panic("a constructor is required to create an Algorithm")
 	}
+
+	alg := &Algorithm[HR]{
+		ctor: ctor,
+		sum:  sum,
+	}
+
+	if alg.sum == nil {
+		alg.sum = func(b []byte) HR {
+			h := alg.ctor()
+			h.Write(b)
+			return h.Value()
+		}
+	}
+
+	return alg
+}
+
+var murmur3Algorithms = struct {
+	alg32 *Algorithm[uint32]
+	alg64 *Algorithm[uint64]
+}{
+	alg32: NewAlgorithm(
+		AsConstructor32(murmur3.New32),
+		murmur3.Sum32,
+	),
+	alg64: NewAlgorithm(
+		AsConstructor64(murmur3.New64),
+		murmur3.Sum64,
+	),
+}
+
+// Default32 returns medley's default 32-bit hashing algorithm, which is 32-bit murmur3
+// with the default seed.
+func Default32() *Algorithm[uint32] {
+	return murmur3Algorithms.alg32
+}
+
+// Default64 returns medley's default 64-bit hashing algorithm, which is 64-bit murmur3
+// with the default seed.
+func Default64() *Algorithm[uint64] {
+	return murmur3Algorithms.alg64
 }
