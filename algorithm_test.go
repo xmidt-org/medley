@@ -5,6 +5,7 @@ package medley
 
 import (
 	"hash"
+	"hash/fnv"
 	"testing"
 
 	"github.com/spaolacci/murmur3"
@@ -12,7 +13,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type AlgorithmSuite[HR HashResult] struct {
+type AlgorithmTestSuite[HR HashResult] struct {
 	suite.Suite
 
 	testString string
@@ -29,7 +30,7 @@ type AlgorithmSuite[HR HashResult] struct {
 	sum func([]byte) HR
 }
 
-func (suite *AlgorithmSuite[HR]) SetupTest() {
+func (suite *AlgorithmTestSuite[HR]) SetupTest() {
 	suite.testString = "these are some lovely test bytes"
 	suite.testBytes = []byte(suite.testString)
 	suite.Require().NotNil(suite.ctor)
@@ -37,7 +38,7 @@ func (suite *AlgorithmSuite[HR]) SetupTest() {
 	suite.Require().NotNil(suite.sum)
 }
 
-func (suite *AlgorithmSuite[HR]) TestNew() {
+func (suite *AlgorithmTestSuite[HR]) TestNew() {
 	actual := suite.ctor().New()
 	expected, expectedSum := suite.testHash()
 
@@ -46,18 +47,18 @@ func (suite *AlgorithmSuite[HR]) TestNew() {
 	suite.Equal(expectedSum(), actual.Value())
 }
 
-func (suite *AlgorithmSuite[HR]) TestSum() {
+func (suite *AlgorithmTestSuite[HR]) TestSum() {
 	actual := suite.ctor().Sum(suite.testBytes)
 	suite.Equal(suite.sum(suite.testBytes), actual)
 }
 
-func (suite *AlgorithmSuite[HR]) TestSumString() {
+func (suite *AlgorithmTestSuite[HR]) TestSumString() {
 	actual := suite.ctor().SumString(suite.testString)
 	expected := suite.sum([]byte(suite.testString))
 	suite.Equal(expected, actual)
 }
 
-func (suite *AlgorithmSuite[HR]) TestSumObject() {
+func (suite *AlgorithmTestSuite[HR]) TestSumObject() {
 	obj := Bytes(suite.testBytes)
 	actual := suite.ctor().SumObject(obj)
 	expected := suite.sum(obj.b)
@@ -84,23 +85,31 @@ func asSum64(ctor func() hash.Hash64) func([]byte) uint64 {
 	}
 }
 
-func TestAlgorithm32(t *testing.T) {
-	t.Run("Default32", func(t *testing.T) {
-		suite.Run(t, &AlgorithmSuite[uint32]{
-			ctor: Default32,
-			testHash: func() (expected hash.Hash, expectedSum func() uint32) {
-				h := murmur3.New32()
-				return h, h.Sum32
-			},
-
-			// We can't use the murmur3.Sum32 function right now because of:
-			// https://github.com/spaolacci/murmur3/issues/34
-			sum: asSum32(murmur3.New32),
+func TestNewAlgorithm(t *testing.T) {
+	t.Run("NilConstructor", func(t *testing.T) {
+		assert.Panics(t, func() {
+			NewAlgorithm(nil, murmur3.Sum32)
 		})
+	})
+}
+
+// TestDefault32 runs deeper tests on the Algorithm type as a whole,
+// using medley's default 32-bit algorithm.
+func TestDefault32(t *testing.T) {
+	suite.Run(t, &AlgorithmTestSuite[uint32]{
+		ctor: Default32,
+		testHash: func() (expected hash.Hash, expectedSum func() uint32) {
+			h := murmur3.New32()
+			return h, h.Sum32
+		},
+
+		// We can't use the murmur3.Sum32 function right now because of:
+		// https://github.com/spaolacci/murmur3/issues/34
+		sum: asSum32(murmur3.New32),
 	})
 
 	t.Run("NilSum", func(t *testing.T) {
-		suite.Run(t, &AlgorithmSuite[uint32]{
+		suite.Run(t, &AlgorithmTestSuite[uint32]{
 			ctor: func() *Algorithm[uint32] {
 				// check that synthesizing a Sum([]byte) HR funtion works as intended
 				return NewAlgorithm(AsConstructor32(murmur3.New32), nil)
@@ -115,31 +124,25 @@ func TestAlgorithm32(t *testing.T) {
 			sum: asSum32(murmur3.New32),
 		})
 	})
-
-	t.Run("NewAlgorithmNilConstructor", func(t *testing.T) {
-		assert.Panics(t, func() {
-			NewAlgorithm(nil, murmur3.Sum32)
-		})
-	})
 }
 
-func TestAlgorithm64(t *testing.T) {
-	t.Run("Default64", func(t *testing.T) {
-		suite.Run(t, &AlgorithmSuite[uint64]{
-			ctor: Default64,
-			testHash: func() (expected hash.Hash, expectedSum func() uint64) {
-				h := murmur3.New64()
-				return h, h.Sum64
-			},
+// TestDefault32 runs deeper tests on the Algorithm type as a whole,
+// using medley's default 32-bit algorithm.
+func TestDefault64(t *testing.T) {
+	suite.Run(t, &AlgorithmTestSuite[uint64]{
+		ctor: Default64,
+		testHash: func() (expected hash.Hash, expectedSum func() uint64) {
+			h := murmur3.New64()
+			return h, h.Sum64
+		},
 
-			// We can't use the murmur3.Sum32 function right now because of:
-			// https://github.com/spaolacci/murmur3/issues/34
-			sum: asSum64(murmur3.New64),
-		})
+		// We can't use the murmur3.Sum32 function right now because of:
+		// https://github.com/spaolacci/murmur3/issues/34
+		sum: asSum64(murmur3.New64),
 	})
 
 	t.Run("NilSum", func(t *testing.T) {
-		suite.Run(t, &AlgorithmSuite[uint64]{
+		suite.Run(t, &AlgorithmTestSuite[uint64]{
 			ctor: func() *Algorithm[uint64] {
 				// check that synthesizing a Sum([]byte) HR funtion works as intended
 				return NewAlgorithm(AsConstructor64(murmur3.New64), nil)
@@ -154,10 +157,52 @@ func TestAlgorithm64(t *testing.T) {
 			sum: asSum64(murmur3.New64),
 		})
 	})
+}
 
-	t.Run("NewAlgorithmNilConstructor", func(t *testing.T) {
-		assert.Panics(t, func() {
-			NewAlgorithm(nil, murmur3.Sum64)
-		})
+func TestFNV32(t *testing.T) {
+	suite.Run(t, &AlgorithmTestSuite[uint32]{
+		ctor: FNV32,
+		testHash: func() (expected hash.Hash, expectedSum func() uint32) {
+			h := fnv.New32()
+			return h, h.Sum32
+		},
+		// the hash/fnv package does not provide a package-level sum function
+		sum: asSum32(fnv.New32),
+	})
+}
+
+func TestFNV32a(t *testing.T) {
+	suite.Run(t, &AlgorithmTestSuite[uint32]{
+		ctor: FNV32a,
+		testHash: func() (expected hash.Hash, expectedSum func() uint32) {
+			h := fnv.New32a()
+			return h, h.Sum32
+		},
+		// the hash/fnv package does not provide a package-level sum function
+		sum: asSum32(fnv.New32a),
+	})
+}
+
+func TestFNV64(t *testing.T) {
+	suite.Run(t, &AlgorithmTestSuite[uint64]{
+		ctor: FNV64,
+		testHash: func() (expected hash.Hash, expectedSum func() uint64) {
+			h := fnv.New64()
+			return h, h.Sum64
+		},
+		// the hash/fnv package does not provide a package-level sum function
+		sum: asSum64(fnv.New64),
+	})
+}
+
+func TestFNV64a(t *testing.T) {
+	suite.Run(t, &AlgorithmTestSuite[uint64]{
+		ctor: FNV64a,
+		testHash: func() (expected hash.Hash, expectedSum func() uint64) {
+			h := fnv.New64a()
+			return h, h.Sum64
+		},
+		// the hash/fnv package does not provide a package-level sum function
+		sum: asSum64(fnv.New64a),
 	})
 }

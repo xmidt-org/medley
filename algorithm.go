@@ -4,6 +4,8 @@
 package medley
 
 import (
+	"hash/fnv"
+
 	"github.com/spaolacci/murmur3"
 	"github.com/xmidt-org/medley/internal"
 )
@@ -105,3 +107,21 @@ func Default32() *Algorithm[uint32] {
 func Default64() *Algorithm[uint64] {
 	return default64
 }
+
+var fnv32 = NewAlgorithm(AsConstructor32(fnv.New32), nil)
+var fnv32a = NewAlgorithm(AsConstructor32(fnv.New32a), nil)
+
+// FNV32 returns the medley Algorithm for 32-bit fnv.
+func FNV32() *Algorithm[uint32] { return fnv32 }
+
+// FNV32a returns the medley Algorithm for 32-bit fnv-a.
+func FNV32a() *Algorithm[uint32] { return fnv32a }
+
+var fnv64 = NewAlgorithm(AsConstructor64(fnv.New64), nil)
+var fnv64a = NewAlgorithm(AsConstructor64(fnv.New64a), nil)
+
+// FNV64 returns the medley Algorithm for 64-bit fnv.
+func FNV64() *Algorithm[uint64] { return fnv64 }
+
+// FNV64a returns the medley Algorithm for 64-bit fnv-a.
+func FNV64a() *Algorithm[uint64] { return fnv64a }
