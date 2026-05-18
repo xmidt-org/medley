@@ -110,4 +110,5 @@ func (b *Builder[V]) Build(values iter.Seq2[medley.Object, V]) *Ring[V] {
 
 	r.nodes.sort()
 	return r
+
 }

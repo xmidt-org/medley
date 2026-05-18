@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Comcast Cable Communications Management, LLC
 // SPDX-License-Identifier: Apache-2.0
 
-package consistent
+package benchmarks
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/billhathaway/consistentHash"
 	"github.com/xmidt-org/medley"
+	"github.com/xmidt-org/medley/consistent"
 )
 
 type benchmarkCase struct {
@@ -48,7 +49,7 @@ func init() {
 func BenchmarkMedleyRingCreationUsingExpectedValues(b *testing.B) {
 	for _, benchmarkCase := range benchmarkCases {
 		b.Run(benchmarkCase.name, func(b *testing.B) {
-			builder := new(Builder[string]).
+			builder := new(consistent.Builder[string]).
 				VNodes(benchmarkCase.vnodes).
 				ExpectedValues(len(benchmarkCase.hostNames))
 
@@ -69,7 +70,7 @@ func BenchmarkMedleyRingCreationUsingExpectedValues(b *testing.B) {
 func BenchmarkMedleyRingCreationNoExpectedValues(b *testing.B) {
 	for _, benchmarkCase := range benchmarkCases {
 		b.Run(benchmarkCase.name, func(b *testing.B) {
-			builder := new(Builder[string]).
+			builder := new(consistent.Builder[string]).
 				VNodes(benchmarkCase.vnodes)
 
 			values := medley.Objectify(
