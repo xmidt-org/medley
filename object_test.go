@@ -23,9 +23,6 @@ type ObjectTestSuite[C any] struct {
 // assertLen verifies that Object.Len behaves correctly.
 func (suite *ObjectTestSuite[C]) assertLen(expectedLen int, obj Object) {
 	suite.Equal(expectedLen, obj.Len())
-
-	obj.Clear()
-	suite.Zero(obj.Len())
 }
 
 // assertToHash32 verifies that a lifecycle involving the object's ToHash
@@ -38,11 +35,6 @@ func (suite *ObjectTestSuite[C]) assertToHash(obj Object) {
 	} else {
 		suite.Equal(obj.b, buffer.Bytes())
 	}
-
-	buffer.Reset()
-	obj.Clear()
-	obj.ToHash(&buffer)
-	suite.Zero(buffer.Len())
 }
 
 // assertWriteTo verifies that WriterTo behaves correct for the given object.
@@ -50,12 +42,6 @@ func (suite *ObjectTestSuite[C]) assertWriteTo(obj Object) {
 	var buffer bytes.Buffer
 	n, err := obj.WriteTo(&buffer)
 	suite.Equal(obj.Len(), int(n))
-	suite.NoError(err)
-
-	buffer.Reset()
-	obj.Clear()
-	n, err = obj.WriteTo(&buffer)
-	suite.Zero(int(n))
 	suite.NoError(err)
 }
 

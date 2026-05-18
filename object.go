@@ -14,9 +14,6 @@ import (
 // Object is a hashable sequence of bytes. Typically, an Object represents the
 // hashable part of an arbitrary type. Using an Object allows the hashable bytes to be
 // determined once and then reused.
-//
-// The internal bytes are never modified by any Object methods. However, Clear does
-// set the internal byte slice to a distinct empty slice.
 type Object struct {
 	b []byte
 }
@@ -40,19 +37,6 @@ func (obj Object) ToHash(dst io.Writer) {
 func (obj Object) WriteTo(dst io.Writer) (int64, error) {
 	c, err := dst.Write(obj.b)
 	return int64(c), err
-}
-
-// Clear zeroes out this Object. Unlike the other methods, this method
-// mutates this Object. However, it never mutates the previous contents.
-// After this method is called, Len() will return 0 and methods that write
-// to an io.Writer will write an empty, non-nil slice.
-//
-// When in performance-critical code, use this method to reduce GC pressure
-// after reusing an Object during a long operation.
-func (obj *Object) Clear() {
-	// don't set to nil, as we don't want the other methods to write
-	// nil byte buffers and (possibly) panic.
-	obj.b = []byte{}
 }
 
 // Bytes returns an Object which contains the given bytes. The caller
