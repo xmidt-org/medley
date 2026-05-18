@@ -49,7 +49,7 @@ func (hns hashNodes[V]) sort() {
 	sort.Sort(hns)
 }
 
-// nearest returns the *hashNode nearest the given object. If this slice
+// nearest returns the value nearest the given object. If this slice
 // is empty, this method panics. Callers should check the length first
 // before calling this method.
 func (hns hashNodes[V]) nearest(object uint64) (value V) {
