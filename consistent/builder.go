@@ -30,10 +30,10 @@ func (b *Builder[V]) VNodes(v int) *Builder[V] {
 	return b
 }
 
-// Alg64 sets the Algorithm64 used to both generate the hash Ring and hash
+// Algorithm sets the Algorithm64 used to both generate the hash Ring and hash
 // objects to lookup values on the Ring. By default, a Builder will use
 // medley.DefaultAlgorithm().
-func (b *Builder[V]) Alg64(v *medley.Algorithm[uint64]) *Builder[V] {
+func (b *Builder[V]) Algorithm(v *medley.Algorithm[uint64]) *Builder[V] {
 	b.alg = v
 	return b
 }
@@ -71,7 +71,8 @@ func (b *Builder[V]) allocateRing() (r *Ring[V], vnodes int) {
 
 // Build constructs a hash ring over the supplied values using this builder's configuration.
 // If successful, this method returns a non-nil Ring and a nil error. If any error occurs,
-// a nil Ring is returned along with that error.
+// a nil Ring is returned along with that error. The sequence of values is taken as is. No
+// deduplication is done.
 //
 // If possible, use ExpectedValues and supply the number of elements that the values sequence
 // will return. This allows Build to preallocate nodes in the hash ring, rather than allocating
