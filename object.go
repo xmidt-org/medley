@@ -4,7 +4,6 @@
 package medley
 
 import (
-	"encoding/binary"
 	"io"
 	"iter"
 	"slices"
@@ -63,27 +62,6 @@ func String[S ~string](v S) Object {
 	return Object{
 		b: internal.UnsafeBytes(string(v)),
 	}
-}
-
-// Integer creates a hashable Object for a given integral type using the given byte order.
-// Only certain integral types are directly supported, but callers may convert other integral
-// types as needed before calling this function.
-func Integer[U uint16 | uint32 | uint64](v U, order binary.ByteOrder) (obj Object) {
-	switch i := any(v).(type) {
-	case uint16:
-		obj.b = make([]byte, 2)
-		order.PutUint16(obj.b, i)
-
-	case uint32:
-		obj.b = make([]byte, 4)
-		order.PutUint32(obj.b, i)
-
-	case uint64:
-		obj.b = make([]byte, 8)
-		order.PutUint64(obj.b, i)
-	}
-
-	return
 }
 
 // Objecter is a closure that can produce a hashable Object from an arbitrary value.

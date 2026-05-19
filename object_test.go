@@ -5,9 +5,7 @@ package medley
 
 import (
 	"bytes"
-	"encoding/binary"
 	"iter"
-	"reflect"
 	"slices"
 	"strconv"
 	"testing"
@@ -183,90 +181,6 @@ func (suite *StringTestSuite) TestWriteTo() {
 
 func TestString(t *testing.T) {
 	suite.Run(t, new(StringTestSuite))
-}
-
-type integerTestCase[U uint16 | uint32 | uint64] struct {
-	name      string
-	contents  U
-	byteOrder binary.ByteOrder
-}
-
-// IntegerTestSuite runs tests over the Integer constructor for objects.
-// Input is fixed length, making much fewer test cases.
-type IntegerTestSuite[U uint16 | uint32 | uint64] struct {
-	ObjectTestSuite[U]
-
-	expectedLen int
-	testCases   []integerTestCase[U]
-}
-
-func (suite *IntegerTestSuite[U]) SetupSuite() {
-	suite.expectedLen = int(reflect.TypeFor[U]().Size())
-
-	// testBytes is just a constant set of bytes used
-	// to generate uints of the various sizes we support.
-	testBytes := [8]byte{
-		0xF5, 0x39, 0xAE, 0x19,
-		0xD4, 0x5B, 0x95, 0xDC,
-	}
-
-	var testValue U
-	for i := range suite.expectedLen {
-		testValue <<= 8
-		testValue |= U(testBytes[i])
-	}
-
-	suite.testCases = []integerTestCase[U]{
-		{
-			name:      "BigEndian",
-			contents:  testValue,
-			byteOrder: binary.BigEndian,
-		},
-		{
-			name:      "LittleEndian",
-			contents:  testValue,
-			byteOrder: binary.LittleEndian,
-		},
-	}
-}
-
-func (suite *IntegerTestSuite[U]) TestLen() {
-	for _, testCase := range suite.testCases {
-		suite.Run(testCase.name, func() {
-			obj := Integer(testCase.contents, testCase.byteOrder)
-			suite.assertLen(suite.expectedLen, obj)
-		})
-	}
-}
-
-func (suite *IntegerTestSuite[U]) TestToHash() {
-	for _, testCase := range suite.testCases {
-		suite.Run(testCase.name, func() {
-			obj := Integer(testCase.contents, testCase.byteOrder)
-			suite.assertToHash(obj)
-		})
-	}
-}
-
-func (suite *IntegerTestSuite[U]) TestWriteTo() {
-	for _, testCase := range suite.testCases {
-		suite.Run(testCase.name, func() {
-			obj := Integer(testCase.contents, testCase.byteOrder)
-			suite.assertWriteTo(obj)
-		})
-	}
-}
-
-func TestInteger16(t *testing.T) {
-	suite.Run(t, new(IntegerTestSuite[uint16]))
-}
-
-func TestInteger32(t *testing.T) {
-	suite.Run(t, new(IntegerTestSuite[uint32]))
-}
-
-func TestInteger64(t *testing.T) {
-	suite.Run(t, new(IntegerTestSuite[uint64]))
 }
 
 // ObjectSequenceTestSuite holds common infrastructure for testing sequences of
