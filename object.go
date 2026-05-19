@@ -95,7 +95,7 @@ func ObjectifySlice[V any](o Objecter[V], values []V) iter.Seq2[Object, V] {
 }
 
 // Stringify is a convenience for transforming a sequence of strings into (Object, value)
-// tuples to hash.
+// tuples to hash. Each string is simply used as the hash object, using String.
 func Stringify[V ~string](values iter.Seq[V]) iter.Seq2[Object, V] {
 	return Objectify(
 		String, values,
@@ -103,7 +103,7 @@ func Stringify[V ~string](values iter.Seq[V]) iter.Seq2[Object, V] {
 }
 
 // StringifySlice is a convenience for transforming a slice of strings into (Object, value)
-// tuples to hash.
+// tuples to hash. Each string is simply used as the hash object, using String.
 func StringifySlice[V ~string](values []V) iter.Seq2[Object, V] {
 	return ObjectifySlice(
 		String, values,
