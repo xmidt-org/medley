@@ -23,6 +23,9 @@ type ObjectTestSuite[C any] struct {
 // assertLen verifies that Object.Len behaves correctly.
 func (suite *ObjectTestSuite[C]) assertLen(expectedLen int, obj Object) {
 	suite.Equal(expectedLen, obj.Len())
+	buf := obj.Append([]byte{})
+	suite.Equal(expectedLen, len(buf))
+	suite.Equal(obj.b, buf)
 }
 
 // assertToHash32 verifies that a lifecycle involving the object's ToHash

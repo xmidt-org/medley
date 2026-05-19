@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"io"
 	"iter"
+	"slices"
 
 	"github.com/xmidt-org/medley/internal"
 )
@@ -21,6 +22,13 @@ type Object struct {
 // Len returns the number of bytes this in this Object.
 func (obj Object) Len() int {
 	return len(obj.b)
+}
+
+// Append appends this object's bytes to the supplied buffer,
+// and returns the resulting slice.
+func (obj Object) Append(buf []byte) []byte {
+	buf = slices.Grow(buf, len(obj.b))
+	return append(buf, obj.b...)
 }
 
 // ToHash writes this Object's contents to the given writer.

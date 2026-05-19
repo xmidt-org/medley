@@ -6,9 +6,11 @@ package benchmarks
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/billhathaway/consistentHash"
+	"github.com/spaolacci/murmur3"
 	"github.com/xmidt-org/medley"
 	"github.com/xmidt-org/medley/consistent"
 )
@@ -41,6 +43,34 @@ func init() {
 				hostNames: benchmarkHostNames[:hostCount],
 			})
 		}
+	}
+}
+
+func BenchmarkMultipleHashWrites(b *testing.B) {
+	h := murmur3.New64()
+	var iBuffer [10]byte
+	for b.Loop() {
+		h.Reset()
+		h.Write(strconv.AppendUint(iBuffer[:], 204, 10))
+		h.Write([]byte{'='})
+		h.Write([]byte("hostname.something.net"))
+
+		r := h.Sum64()
+		r++ // so the compiler doesn't optimize it away
+	}
+}
+
+func BenchmarkSingleHashWrite(b *testing.B) {
+	h := murmur3.New64()
+	const hostName = "hostname.something.net"
+	for b.Loop() {
+		h.Reset()
+		h.Write(
+			[]byte(strconv.Itoa(204) + "=" + hostName),
+		)
+
+		r := h.Sum64()
+		r++ // so the compiler doesn't optimize it away
 	}
 }
 

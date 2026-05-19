@@ -85,11 +85,8 @@ func (b *Builder[V]) Build(values iter.Seq2[medley.Object, V]) *Ring[V] {
 
 		h = r.alg.New()
 
-		// we know this buffer is large enough to hold any uint16 in base 10
-		iBuffer = make([]byte, 0, 5)
-
-		// github.com/billhathaway/consistentHash uses this delimiter
-		delimiter = []byte{'='}
+		// create an initial buffer that is likely big enough in most cases
+		tokenBuffer = make([]byte, 256)
 	)
 
 	for id, value := range values {
@@ -101,14 +98,18 @@ func (b *Builder[V]) Build(values iter.Seq2[medley.Object, V]) *Ring[V] {
 			// this identifier is equivalent to:
 			// https://github.com/billhathaway/consistentHash/blob/master/consistentHash.go#L60
 			h.Reset()
-			h.Write(strconv.AppendUint(iBuffer, i, 10))
-			h.Write(delimiter)
-			id.ToHash(h)
+			tokenBuffer = strconv.AppendUint(tokenBuffer[:0], i, 10) // monotonic integer
+			tokenBuffer = append(tokenBuffer, '=')                   // github.com/billhathaway/consistentHash uses this delimiter
+			tokenBuffer = id.Append(tokenBuffer)
+
+			// based on benchmarking, one big write to the hash is faster
+			// than individual writes.
+			h.Write(tokenBuffer)
+
 			r.nodes = r.nodes.append(h.Value(), value)
 		}
 	}
 
 	r.nodes.sort()
 	return r
-
 }
