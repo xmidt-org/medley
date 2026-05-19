@@ -59,9 +59,9 @@ func Bytes(b []byte) Object {
 
 // String returns an Object with the given string's bytes. This function
 // does not reallocate memory for the string's contents.
-func String(v string) Object {
+func String[S ~string](v S) Object {
 	return Object{
-		b: internal.UnsafeBytes(v),
+		b: internal.UnsafeBytes(string(v)),
 	}
 }
 
@@ -102,4 +102,32 @@ func Objectify[V any](o Objecter[V], values iter.Seq[V]) iter.Seq2[Object, V] {
 			}
 		}
 	}
+}
+
+// ObjectifySlice transforms a slice of values into a sequence of (Object, value) tuples,
+// in a similar fashion to Objectify.
+func ObjectifySlice[V any](o Objecter[V], values []V) iter.Seq2[Object, V] {
+	return func(yield func(Object, V) bool) {
+		for _, value := range values {
+			if !yield(o(value), value) {
+				return
+			}
+		}
+	}
+}
+
+// Stringify is a convenience for transforming a sequence of strings into (Object, value)
+// tuples to hash.
+func Stringify[V ~string](values iter.Seq[V]) iter.Seq2[Object, V] {
+	return Objectify(
+		String, values,
+	)
+}
+
+// StringifySlice is a convenience for transforming a slice of strings into (Object, value)
+// tuples to hash.
+func StringifySlice[V ~string](values []V) iter.Seq2[Object, V] {
+	return ObjectifySlice(
+		String, values,
+	)
 }

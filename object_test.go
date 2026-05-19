@@ -6,6 +6,7 @@ package medley
 import (
 	"bytes"
 	"encoding/binary"
+	"iter"
 	"reflect"
 	"slices"
 	"strconv"
@@ -268,35 +269,173 @@ func TestInteger64(t *testing.T) {
 	suite.Run(t, new(IntegerTestSuite[uint64]))
 }
 
-type ObjectifyTestSuite struct {
+// ObjectSequenceTestSuite holds common infrastructure for testing sequences of
+// hashable objects produced by Objectify and its variants.
+type ObjectSequenceTestSuite[V comparable] struct {
 	suite.Suite
 }
 
-func (suite *ObjectifyTestSuite) TestBasic() {
-	testValues := []string{"one", "two", "three"}
-	var objects []Object
-	for obj := range Objectify(String, slices.Values(testValues)) {
-		objects = append(objects, obj)
+// assertSequence verifies that the actual Objectify-style sequence visits each of the expected
+// elements in proper order.
+func (suite *ObjectSequenceTestSuite[V]) assertSequence(expectedCount int, verify Objecter[V], expected iter.Seq[V], actual iter.Seq2[Object, V]) {
+	expectedNext, expectedStop := iter.Pull(expected)
+	defer expectedStop()
+
+	actualNext, actualStop := iter.Pull2(actual)
+	defer actualStop()
+
+	actualCount := 0
+	for expected, ok := expectedNext(); ok; expected, ok = expectedNext() {
+		actualObject, actual, ok := actualNext()
+		suite.Require().True(ok)
+
+		actualCount++
+		suite.Equal(expected, actual)
+		suite.Equal(
+			verify(actual).b,
+			actualObject.b,
+		)
 	}
 
-	suite.Require().Len(objects, len(testValues))
-	for i, testValue := range testValues {
-		suite.Equal(String(testValue), objects[i])
+	suite.Equal(expectedCount, actualCount)
+}
+
+// assertSlice verifies that the actual Objectify-style sequence visits each of the expected
+// slice elements in proper order.
+func (suite *ObjectSequenceTestSuite[V]) assertSlice(verify Objecter[V], expected []V, actual iter.Seq2[Object, V]) {
+	actualNext, actualStop := iter.Pull2(actual)
+	defer actualStop()
+
+	for i := 0; i < len(expected); i++ {
+		expected := expected[i]
+
+		actualObject, actual, ok := actualNext()
+		suite.Require().True(ok)
+
+		suite.Equal(expected, actual)
+		suite.Equal(
+			verify(actual).b,
+			actualObject.b,
+		)
 	}
 }
 
-func (suite *ObjectifyTestSuite) TestEarlyReturn() {
-	testValues := []string{"one", "two", "three"}
-	var objects []Object
-	for obj := range Objectify(String, slices.Values(testValues)) {
-		objects = append(objects, obj)
+// assertEarlyReturn verifies that the yield function works correctly and will
+// allow a for loop to break early.
+func (suite *ObjectSequenceTestSuite[V]) assertEarlyReturn(expectedFirstObject Object, expectedFirstValue V, actual iter.Seq2[Object, V]) {
+	iterations := 0
+	for obj, value := range actual {
+		suite.Require().Zero(iterations)
+		suite.Equal(expectedFirstObject.b, obj.b)
+		suite.Equal(expectedFirstValue, value)
+		iterations++
 		break
 	}
 
-	suite.Require().Len(objects, 1)
-	suite.Equal(String(testValues[0]), objects[0])
+	suite.Equal(iterations, 1)
+}
+
+// ObjectifyTestSuite tests the generic Objectify and ObjectifySlice functions.
+type ObjectifyTestSuite struct {
+	ObjectSequenceTestSuite[string]
+}
+
+func (suite *ObjectifyTestSuite) TestSequence() {
+	testValues := slices.Values([]string{"one", "two", "three"})
+
+	suite.assertSequence(
+		3,
+		String,
+		testValues,
+		Objectify(
+			String,
+			testValues,
+		),
+	)
+}
+
+func (suite *ObjectifyTestSuite) TestSlice() {
+	testValues := []string{"one", "two", "three"}
+
+	suite.assertSlice(
+		String,
+		testValues,
+		ObjectifySlice(
+			String,
+			testValues,
+		),
+	)
+}
+
+func (suite *ObjectifyTestSuite) TestEarlyReturn() {
+	suite.Run("Sequence", func() {
+		testValues := []string{"one", "two", "three"}
+		suite.assertEarlyReturn(
+			String("one"),
+			"one",
+			Objectify(String, slices.Values(testValues)),
+		)
+	})
+
+	suite.Run("Slice", func() {
+		testValues := []string{"one", "two", "three"}
+		suite.assertEarlyReturn(
+			String("one"),
+			"one",
+			ObjectifySlice(String, testValues),
+		)
+	})
 }
 
 func TestObjectify(t *testing.T) {
 	suite.Run(t, new(ObjectifyTestSuite))
+}
+
+type StringifyTestSuite struct {
+	ObjectSequenceTestSuite[string]
+}
+
+func (suite *StringifyTestSuite) TestSequence() {
+	testValues := slices.Values([]string{"one", "two", "three"})
+
+	suite.assertSequence(
+		3,
+		String,
+		testValues,
+		Stringify(testValues),
+	)
+}
+
+func (suite *StringifyTestSuite) TestSlice() {
+	testValues := []string{"one", "two", "three"}
+
+	suite.assertSlice(
+		String,
+		testValues,
+		StringifySlice(testValues),
+	)
+}
+
+func (suite *StringifyTestSuite) TestEarlyReturn() {
+	suite.Run("Sequence", func() {
+		testValues := []string{"one", "two", "three"}
+		suite.assertEarlyReturn(
+			String("one"),
+			"one",
+			Stringify(slices.Values(testValues)),
+		)
+	})
+
+	suite.Run("Slice", func() {
+		testValues := []string{"one", "two", "three"}
+		suite.assertEarlyReturn(
+			String("one"),
+			"one",
+			StringifySlice(testValues),
+		)
+	})
+}
+
+func TestStringify(t *testing.T) {
+	suite.Run(t, new(StringifyTestSuite))
 }

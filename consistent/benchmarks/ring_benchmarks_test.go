@@ -5,7 +5,6 @@ package benchmarks
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 	"testing"
 
@@ -83,10 +82,7 @@ func BenchmarkMedleyRingCreationUsingExpectedValues(b *testing.B) {
 				VNodes(benchmarkCase.vnodes).
 				ExpectedValues(len(benchmarkCase.hostNames))
 
-			values := medley.Objectify(
-				medley.String,
-				slices.Values(benchmarkCase.hostNames),
-			)
+			values := medley.StringifySlice(benchmarkCase.hostNames)
 
 			for b.Loop() {
 				builder.Build(values)
@@ -103,10 +99,7 @@ func BenchmarkMedleyRingCreationNoExpectedValues(b *testing.B) {
 			builder := new(consistent.Builder[string]).
 				VNodes(benchmarkCase.vnodes)
 
-			values := medley.Objectify(
-				medley.String,
-				slices.Values(benchmarkCase.hostNames),
-			)
+			values := medley.StringifySlice(benchmarkCase.hostNames)
 
 			for b.Loop() {
 				builder.Build(values)
