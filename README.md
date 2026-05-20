@@ -95,7 +95,7 @@ ring := builder.Build(
 fmt.Println(ring.NearestString("myobject"))
 ```
 
-Custom values are also support on a `Ring`. You simply have to tell `medley` how to obtain the hashable object from each custom value.
+Custom values are also supported on a `Ring`. You simply have to tell `medley` how to obtain the hashable object from each custom value.
 
 ```golang
 type server struct {
