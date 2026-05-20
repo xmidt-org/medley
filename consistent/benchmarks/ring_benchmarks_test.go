@@ -55,8 +55,7 @@ func BenchmarkMultipleHashWrites(b *testing.B) {
 		h.Write([]byte{'='})
 		h.Write([]byte("hostname.something.net"))
 
-		r := h.Sum64()
-		r++ // so the compiler doesn't optimize it away
+		h.Sum64()
 	}
 }
 
@@ -69,8 +68,7 @@ func BenchmarkSingleHashWrite(b *testing.B) {
 			[]byte(strconv.Itoa(204) + "=" + hostName),
 		)
 
-		r := h.Sum64()
-		r++ // so the compiler doesn't optimize it away
+		h.Sum64()
 	}
 }
 

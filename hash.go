@@ -16,7 +16,7 @@ type HashResult interface {
 	uint32 | uint64
 }
 
-// Hash is medley's analogue for hash.Hash. It behaves exactly like hash.Hash.
+// Hash is medley's analog for hash.Hash. It behaves exactly like hash.Hash.
 // The Sum32/Sum64 methods are replaced with the Value method.
 //
 // Hash also implements io.StringWriter, allowing strings to be written directly
@@ -39,7 +39,7 @@ type hash32 struct {
 }
 
 func (h32 *hash32) Value() uint32 {
-	return h32.Hash32.Sum32()
+	return h32.Sum32()
 }
 
 func (h32 *hash32) WriteString(v string) (int, error) {
@@ -80,7 +80,7 @@ type hash64 struct {
 }
 
 func (h64 *hash64) Value() uint64 {
-	return h64.Hash64.Sum64()
+	return h64.Sum64()
 }
 
 func (h64 *hash64) WriteString(v string) (int, error) {

@@ -104,7 +104,7 @@ func TestDefault32(t *testing.T) {
 	t.Run("NilSum", func(t *testing.T) {
 		suite.Run(t, &AlgorithmTestSuite[uint32]{
 			ctor: func() *Algorithm[uint32] {
-				// check that synthesizing a Sum([]byte) HR funtion works as intended
+				// check that synthesizing a Sum([]byte) HR function works as intended
 				return NewAlgorithm(AsConstructor32(murmur3.New32), nil)
 			},
 			testHash: func() (expected hash.Hash, expectedSum func() uint32) {
@@ -137,7 +137,7 @@ func TestDefault64(t *testing.T) {
 	t.Run("NilSum", func(t *testing.T) {
 		suite.Run(t, &AlgorithmTestSuite[uint64]{
 			ctor: func() *Algorithm[uint64] {
-				// check that synthesizing a Sum([]byte) HR funtion works as intended
+				// check that synthesizing a Sum([]byte) HR function works as intended
 				return NewAlgorithm(AsConstructor64(murmur3.New64), nil)
 			},
 			testHash: func() (expected hash.Hash, expectedSum func() uint64) {

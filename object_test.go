@@ -53,7 +53,7 @@ type ObjectifyTestSuite struct {
 func (suite *ObjectifyTestSuite) TestSequence() {
 	type server struct {
 		hostName string
-		port     int
+		port     int //nolint:unused
 	}
 
 	objecter := func(s *server) string { return s.hostName }
