@@ -7,43 +7,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
-
-func TestAppend(t *testing.T) {
-	const testValue = "here is a test value"
-
-	t.Run("ByteSlice", func(t *testing.T) {
-		object := []byte(testValue)
-		var dst []byte
-		dst = Append(dst, object)
-		assert.Equal(t, object, dst)
-	})
-
-	t.Run("CustomByteSlice", func(t *testing.T) {
-		type Custom []byte
-		object := Custom(testValue)
-		var dst []byte
-		dst = Append(dst, object)
-		assert.Equal(t, []byte(object), dst)
-	})
-
-	t.Run("String", func(t *testing.T) {
-		object := testValue
-		var dst []byte
-		dst = Append(dst, object)
-		assert.Equal(t, []byte(object), dst)
-	})
-
-	t.Run("CustomString", func(t *testing.T) {
-		type Custom string
-		object := Custom(testValue)
-		var dst []byte
-		dst = Append(dst, object)
-		assert.Equal(t, []byte(object), dst)
-	})
-}
 
 // ObjectifyTestSuite tests the generic Objectify function.
 type ObjectifyTestSuite struct {

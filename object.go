@@ -13,11 +13,6 @@ type Object interface {
 	~[]byte | ~string
 }
 
-// Append appends an Object to a slice of bytes.
-func Append[O Object](dst []byte, v O) []byte {
-	return append(dst, v...)
-}
-
 // Objecter is a strategy for producing a hashable Object from an arbitrary value.
 type Objecter[O Object, V any] func(V) O
 

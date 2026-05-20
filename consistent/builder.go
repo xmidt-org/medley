@@ -122,7 +122,7 @@ func (b *Builder[O, V]) Build(n int, values iter.Seq2[O, V]) *Ring[V] {
 			hash.Reset()
 			tokenBuffer = strconv.AppendUint(tokenBuffer[:0], i, 10) // monotonic integer
 			tokenBuffer = append(tokenBuffer, '=')                   // github.com/billhathaway/consistentHash uses this delimiter
-			tokenBuffer = medley.Append(tokenBuffer, object)
+			tokenBuffer = append(tokenBuffer, object...)
 
 			// based on benchmarking, one big write to the hash is faster
 			// than individual writes.
