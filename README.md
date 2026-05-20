@@ -1,6 +1,6 @@
 # medley
 
-medley provides service location based on hashing.
+medley provides hashing logic aimed at distributed hashing.
 
 [![Build Status](https://github.com/xmidt-org/medley/actions/workflows/ci.yml/badge.svg)](https://github.com/xmidt-org/medley/actions/workflows/ci.yml)
 [![codecov.io](http://codecov.io/github/xmidt-org/medley/coverage.svg?branch=main)](http://codecov.io/github/xmidt-org/medley?branch=main)

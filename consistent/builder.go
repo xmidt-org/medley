@@ -61,9 +61,7 @@ func (b *Builder[O, V]) allocateRing(n int) (r *Ring[V], vnodes int) {
 }
 
 // Build constructs a hash ring over the supplied values using this builder's configuration.
-// If successful, this method returns a non-nil Ring and a nil error. If any error occurs,
-// a nil Ring is returned along with that error. The sequence of values is taken as is. No
-// deduplication is done.
+// The sequence of values is taken as is. No deduplication is done.
 //
 // The N parameter is the number of expected tuples that the values sequence will return. N is used
 // as a hint for preallocation. If N is positive, the ring will be preallocated with space for N values
