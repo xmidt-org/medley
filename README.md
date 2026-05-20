@@ -1,3 +1,5 @@
+<!-- SPDX-FileCopyrightText: 2026 Comcast Cable Communications Management, LLC -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # medley
 
 medley provides hashing logic aimed at distributed hashing.

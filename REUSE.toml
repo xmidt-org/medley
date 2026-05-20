@@ -4,7 +4,7 @@ SPDX-PackageSupplier = "John Bass <johnbass1017@yahoo.com>"
 SPDX-PackageDownloadLocation = "https://github.com/xmidt-org/medley"
 
 [[annotations]]
-path = ["go.**", "NOTICE", "**.md", ".whitesource", ".gitignore"]
+path = ["go.**", "NOTICE", ".whitesource", ".gitignore"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "SPDX-FileCopyrightText: 2026 Comcast Cable Communications Management, LLC"
 SPDX-License-Identifier = "Apache-2.0"
