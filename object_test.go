@@ -53,7 +53,7 @@ type ObjectifyTestSuite struct {
 func (suite *ObjectifyTestSuite) TestSequence() {
 	type server struct {
 		hostName string
-		port     int //nolint:unused
+		port     int
 	}
 
 	objecter := func(s *server) string { return s.hostName }
@@ -69,6 +69,7 @@ func (suite *ObjectifyTestSuite) TestSequence() {
 		for object, value := range Objectify(objecter, slices.Values(servers)) {
 			suite.Require().Less(i, len(servers))
 			suite.Equal(servers[i].hostName, object)
+			suite.Equal(servers[i].port, value.port)
 			suite.Equal(servers[i], value)
 			i++
 		}
