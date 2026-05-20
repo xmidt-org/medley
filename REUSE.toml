@@ -6,5 +6,5 @@ SPDX-PackageDownloadLocation = "https://github.com/xmidt-org/medley"
 [[annotations]]
 path = ["go.**", "NOTICE", "**.md", ".whitesource", ".gitignore"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "SPDX-FileCopyrightText: 2025 Comcast Cable Communications Management, LLC"
+SPDX-FileCopyrightText = "SPDX-FileCopyrightText: 2026 Comcast Cable Communications Management, LLC"
 SPDX-License-Identifier = "Apache-2.0"
