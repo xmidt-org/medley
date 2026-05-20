@@ -72,9 +72,9 @@ func BenchmarkSingleHashWrite(b *testing.B) {
 	}
 }
 
-// BenchmarkMedleyRingCreationUsingExpectedValues tests using a Builder to create
-// a Ring with the ExpectedValues hint to preallocate the ring.
-func BenchmarkMedleyRingCreationUsingPreallocation(b *testing.B) {
+// BenchmarkMedleyRingCreationPreallocation tests using a Builder to create
+// a Ring with a hint passed to Builder.Build to preallocate the ring.
+func BenchmarkMedleyRingCreationPreallocation(b *testing.B) {
 	for _, benchmarkCase := range benchmarkCases {
 		b.Run(benchmarkCase.name, func(b *testing.B) {
 			builder := new(consistent.Builder[string, string]).
@@ -91,9 +91,9 @@ func BenchmarkMedleyRingCreationUsingPreallocation(b *testing.B) {
 	}
 }
 
-// BenchmarkMedleyRingCreationNoExpectedValues tests using a Builder to create
+// BenchmarkMedleyRingCreationNoPreallocation tests using a Builder to create
 // a Ring with no hint to preallocate.
-func BenchmarkMedleyRingCreationNoExpectedValues(b *testing.B) {
+func BenchmarkMedleyRingCreationNoPreallocation(b *testing.B) {
 	for _, benchmarkCase := range benchmarkCases {
 		b.Run(benchmarkCase.name, func(b *testing.B) {
 			builder := new(consistent.Builder[string, string]).

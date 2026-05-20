@@ -12,7 +12,7 @@ import (
 // The NearestXX() methods are safe for concurrent use. If Clear() is used,
 // this Ring must be externally synchronized.
 type Ring[V any] struct {
-	alg   *medley.Algorithm[uint64]
+	sum   medley.Sum[uint64]
 	nodes hashNodes[V]
 }
 
@@ -21,7 +21,7 @@ type Ring[V any] struct {
 func (r *Ring[V]) Nearest(object []byte) (value V) {
 	if r.nodes.Len() > 0 {
 		value = r.nodes.nearest(
-			r.alg.Sum(object),
+			r.sum(object),
 		)
 	}
 
@@ -33,7 +33,7 @@ func (r *Ring[V]) Nearest(object []byte) (value V) {
 func (r *Ring[V]) NearestString(object string) (value V) {
 	if r.nodes.Len() > 0 {
 		value = r.nodes.nearest(
-			r.alg.SumString(object),
+			medley.SumString(r.sum, object),
 		)
 	}
 
@@ -47,6 +47,6 @@ func (r *Ring[V]) NearestString(object string) (value V) {
 // Using this method before a Ring is retired can result in significantly less gc pressure.
 func (r *Ring[V]) Clear() {
 	r.nodes.clear()
-	r.alg = nil
+	r.sum = nil
 	r.nodes = nil
 }

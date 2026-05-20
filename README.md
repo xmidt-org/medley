@@ -1,3 +1,5 @@
+<!-- SPDX-FileCopyrightText: 2026 Comcast Cable Communications Management, LLC -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 # medley
 
 medley provides hashing logic aimed at distributed hashing.
@@ -21,7 +23,6 @@ Medley is a hashing package aimed at various types of distributed hashing. Curre
 - [Overview](#overview)
 - [Key Features](#key-features)
   - [Generic medley.Hash interface](#generic-medleyhash-interface)
-  - [Algorithm](#algorithm)
   - [Consistent Hashing](#consistent-hashing)
 - [Contributing](#contributing)
 
@@ -57,23 +58,6 @@ fmt.Println(h.Value()) // instead of Sum64()
 ```
 
 The `WriteString` method computes the hash of a string without additional allocation.
-
-### Algorithm
-
-Medley exposes a generic [Algorithm](https://pkg.go.dev/github.com/xmidt-org/medley#Algorithm) type that is backed by a hashing package. Medley's `Default32` and `Default64` algorithms are based on [murmur3](https://pkg.go.dev/github.com/spaolacci/murmur3).
-
-```golang
-// An algorithm can create a hash
-h64 := medley.Default64().New()
-h64.Write([]byte{1, 2, 3})
-fmt.Println(h64.Value())
-
-// An Algorithm can also do one-time sums
-medley.Default64().Sum([]byte{1, 2, 3})
-medley.Default64().SumString("here is a string")
-```
-
-As with `Hash.WriteString`, `Algorithm.SumString` sums a string's bytes without additional allocation.
 
 ### Consistent Hashing
 
@@ -114,7 +98,7 @@ var builder Builder[string, *server]
 ring := builder.Build(
     len(servers),
     medley.Objectify(
-        func(s *server) string { return s.hostName },
+        func(s *server) string { return s.hostName }, // here's where we tell medley how to get a hashable object from a *service
         slices.Values(servers),
     )
 )

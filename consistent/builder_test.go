@@ -65,7 +65,7 @@ func (suite *BuilderTestSuite) runBuildTests(expectedVNodes int, ringer func([]t
 		suite.Run(fmt.Sprintf("values=%d", len(testServices)), func() {
 			ring := ringer(testServices)
 			suite.Require().NotNil(ring)
-			suite.Require().NotNil(ring.alg) // the builder should always set this, even if it's the default
+			suite.Require().NotNil(ring.sum) // the builder should always set this, even if it's the default
 			suite.Require().Len(ring.nodes, expectedVNodes*len(testServices))
 			suite.Require().True(sort.IsSorted(ring.nodes))
 			if len(ring.nodes) == 0 {
@@ -102,10 +102,10 @@ func (suite *BuilderTestSuite) testBuildDefault(testServices []testService) *Rin
 	)
 }
 
-func (suite *BuilderTestSuite) testBuildCustom(vnodes int, alg *medley.Algorithm[uint64]) func([]testService) *Ring[testService] {
+func (suite *BuilderTestSuite) testBuildCustom(vnodes int, ctor medley.Constructor[uint64], sum medley.Sum[uint64]) func([]testService) *Ring[testService] {
 	return func(testServices []testService) *Ring[testService] {
 		var builder Builder[string, testService]
-		builder.VNodes(vnodes).Algorithm(alg)
+		builder.VNodes(vnodes).Algorithm(ctor, sum)
 		return builder.Build(
 			len(testServices),
 			suite.values(testServices),
@@ -121,18 +121,20 @@ func (suite *BuilderTestSuite) TestBuild() {
 	suite.Run("CustomVNodes", func() {
 		for _, vnodes := range []int{1, 10, 500} {
 			suite.Run(fmt.Sprintf("vnodes=%d", vnodes), func() {
-				suite.runBuildTests(vnodes, suite.testBuildCustom(vnodes, nil))
+				suite.runBuildTests(vnodes, suite.testBuildCustom(vnodes, nil, nil)) // the default algorithm
 			})
 		}
 	})
 
 	suite.Run("CustomAlgorithm", func() {
-		suite.Run("FNV64", func() {
-			suite.runBuildTests(DefaultVNodes, suite.testBuildCustom(DefaultVNodes, medley.FNV64()))
+		suite.Run("FNV64a", func() {
+			ctor, sum := medley.FNV64a()
+			suite.runBuildTests(DefaultVNodes, suite.testBuildCustom(DefaultVNodes, ctor, sum))
 		})
 
-		suite.Run("FNV64a", func() {
-			suite.runBuildTests(DefaultVNodes, suite.testBuildCustom(DefaultVNodes, medley.FNV64a()))
+		suite.Run("NilSum", func() {
+			ctor, _ := medley.FNV64a()
+			suite.runBuildTests(DefaultVNodes, suite.testBuildCustom(DefaultVNodes, ctor, nil))
 		})
 	})
 }
