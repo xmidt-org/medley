@@ -8,6 +8,9 @@ import (
 )
 
 // Ring is a 64-bit hash ring used for consistent hashing.
+//
+// The NearestXX() methods are safe for concurrent use. If Clear() is used,
+// this Ring must be externally synchronized.
 type Ring[V any] struct {
 	alg   *medley.Algorithm[uint64]
 	nodes hashNodes[V]
@@ -15,14 +18,22 @@ type Ring[V any] struct {
 
 // Nearest hashes an object and returns the nearest value on the ring.
 // If this Ring is empty, it returns the zero value for V.
-//
-// Nearest by itself is safe for concurrent access and does not mutate this Ring.
-// However, Clear mutates this Ring and thus calling code must provide synchronization
-// if Clear is used.
-func (r *Ring[V]) Nearest(object medley.Object) (value V) {
+func (r *Ring[V]) Nearest(object []byte) (value V) {
 	if r.nodes.Len() > 0 {
 		value = r.nodes.nearest(
-			r.alg.SumObject(object),
+			r.alg.Sum(object),
+		)
+	}
+
+	return
+}
+
+// NearestString hashes an object and returns the nearest value on the ring.
+// If this Ring is empty, it returns the zero value for V.
+func (r *Ring[V]) NearestString(object string) (value V) {
+	if r.nodes.Len() > 0 {
+		value = r.nodes.nearest(
+			r.alg.SumString(object),
 		)
 	}
 
@@ -30,13 +41,10 @@ func (r *Ring[V]) Nearest(object medley.Object) (value V) {
 }
 
 // Clear wipes out this Ring, zeroing out each node and setting the internal
-// nodes to nil. After this method is called, Nearest will return the zero value for V.
-// This method is idempotent.
+// nodes to nil. After this method is called, the NearestXX methods will return
+// the zero value for V. This method is idempotent.
 //
 // Using this method before a Ring is retired can result in significantly less gc pressure.
-//
-// This method mutates this Ring, and if used must be synchronized with other calls
-// to the same Ring.
 func (r *Ring[V]) Clear() {
 	r.nodes.clear()
 	r.alg = nil

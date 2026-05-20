@@ -51,9 +51,9 @@ func (suite *BuilderTestSuite) SetupSuite() {
 
 // values builds the sequence that Builder.Build expects from a slice of test services.
 // The hostName is used as the hashing object.
-func (suite *BuilderTestSuite) values(services []testService) iter.Seq2[medley.Object, testService] {
+func (suite *BuilderTestSuite) values(services []testService) iter.Seq2[string, testService] {
 	return medley.Objectify(
-		func(ts testService) medley.Object { return medley.String(ts.hostName) },
+		func(ts testService) string { return ts.hostName },
 		slices.Values(services),
 	)
 }
@@ -75,30 +75,39 @@ func (suite *BuilderTestSuite) runBuildTests(expectedVNodes int, ringer func([]t
 			// take a set of test client names to hash to, and make sure they agree
 			// with the hash nodes
 			for _, clientName := range []string{"aclient", "homersimpson", "123anywhere"} {
-				nearest := ring.Nearest(medley.String(clientName))
+				nearest := ring.NearestString(clientName)
+				suite.False(reflect.ValueOf(nearest).IsZero())
+
+				nearest = ring.Nearest([]byte(clientName))
 				suite.False(reflect.ValueOf(nearest).IsZero())
 			}
 
 			ring.Clear()
 			suite.Len(ring.nodes, 0)
-			ts := ring.Nearest(medley.String("aclient"))
+
+			ts := ring.NearestString("aclient")
+			suite.True(reflect.ValueOf(ts).IsZero())
+
+			ts = ring.Nearest([]byte{76, 23, 14})
 			suite.True(reflect.ValueOf(ts).IsZero())
 		})
 	}
 }
 
 func (suite *BuilderTestSuite) testBuildDefault(testServices []testService) *Ring[testService] {
-	var builder Builder[testService]
+	var builder Builder[string, testService]
 	return builder.Build(
+		len(testServices),
 		suite.values(testServices),
 	)
 }
 
 func (suite *BuilderTestSuite) testBuildCustom(vnodes int, alg *medley.Algorithm[uint64]) func([]testService) *Ring[testService] {
 	return func(testServices []testService) *Ring[testService] {
-		var builder Builder[testService]
-		builder.VNodes(vnodes).Algorithm(alg).ExpectedValues(len(testServices))
+		var builder Builder[string, testService]
+		builder.VNodes(vnodes).Algorithm(alg)
 		return builder.Build(
+			len(testServices),
 			suite.values(testServices),
 		)
 	}

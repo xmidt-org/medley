@@ -17,15 +17,14 @@ const (
 
 // Builder is a Fluent Builder for consistent hash Rings. The zero value of this
 // type is ready to use.
-type Builder[V any] struct {
-	vnodes         int
-	alg            *medley.Algorithm[uint64]
-	expectedValues int
+type Builder[O medley.Object, V any] struct {
+	vnodes int
+	alg    *medley.Algorithm[uint64]
 }
 
 // VNodes sets the number of virtual nodes per value. If v is nonpositive,
 // DefaultVNodes is used.
-func (b *Builder[V]) VNodes(v int) *Builder[V] {
+func (b *Builder[O, V]) VNodes(v int) *Builder[O, V] {
 	b.vnodes = v
 	return b
 }
@@ -33,23 +32,15 @@ func (b *Builder[V]) VNodes(v int) *Builder[V] {
 // Algorithm sets the Algorithm64 used to both generate the hash Ring and hash
 // objects to lookup values on the Ring. By default, a Builder will use
 // medley.DefaultAlgorithm().
-func (b *Builder[V]) Algorithm(v *medley.Algorithm[uint64]) *Builder[V] {
+func (b *Builder[O, V]) Algorithm(v *medley.Algorithm[uint64]) *Builder[O, V] {
 	b.alg = v
 	return b
 }
 
-// ExpectedValues gives the builder a hint as to the number of values in the sequence
-// passed to Build. For example, if hashing a ring of 20 servers, use ExpectedValues(20)
-// to have Build preallocate the ring.
-func (b *Builder[V]) ExpectedValues(v int) *Builder[V] {
-	b.expectedValues = v
-	return b
-}
-
 // allocateRing creates an empty ring and computes the number of vnodes to use
-// when building the ring. If expectedValues > 0, the ring's nodes will be
+// when building the ring. If n > 0, the ring's nodes will be
 // preallocated.
-func (b *Builder[V]) allocateRing() (r *Ring[V], vnodes int) {
+func (b *Builder[O, V]) allocateRing(n int) (r *Ring[V], vnodes int) {
 	r = new(Ring[V])
 
 	if b.alg != nil {
@@ -62,8 +53,8 @@ func (b *Builder[V]) allocateRing() (r *Ring[V], vnodes int) {
 		vnodes = DefaultVNodes
 	}
 
-	if b.expectedValues > 0 {
-		r.nodes = allocateHashNodes[V](vnodes * b.expectedValues)
+	if n > 0 {
+		r.nodes = allocateHashNodes[V](vnodes * n)
 	}
 
 	return
@@ -74,14 +65,14 @@ func (b *Builder[V]) allocateRing() (r *Ring[V], vnodes int) {
 // a nil Ring is returned along with that error. The sequence of values is taken as is. No
 // deduplication is done.
 //
-// If possible, use ExpectedValues and supply the number of elements that the values sequence
-// will return. This allows Build to preallocate nodes in the hash ring, rather than allocating
-// on the fly as the value sequence is used.
+// The N parameter is the number of expected tuples that the values sequence will return. N is used
+// as a hint for preallocation. If N is positive, the ring will be preallocated with space for N values
+// and all the required vnodes. If N is nonpositive, no preallocation is done.
 //
 // The state of this builder is retained after this method returns.
-func (b *Builder[V]) Build(values iter.Seq2[medley.Object, V]) *Ring[V] {
+func (b *Builder[O, V]) Build(n int, values iter.Seq2[O, V]) *Ring[V] {
 	var (
-		r, vnodes = b.allocateRing()
+		r, vnodes = b.allocateRing(n)
 
 		h = r.alg.New()
 
@@ -89,7 +80,7 @@ func (b *Builder[V]) Build(values iter.Seq2[medley.Object, V]) *Ring[V] {
 		tokenBuffer = make([]byte, 256)
 	)
 
-	for id, value := range values {
+	for object, value := range values {
 		// if ExpectedValues was set appropriately, growing won't do anything as we'll have enough space.
 		// however, this cuts down the number of allocations in the case where no hint was given.
 		r.nodes = r.nodes.grow(vnodes)
@@ -100,7 +91,7 @@ func (b *Builder[V]) Build(values iter.Seq2[medley.Object, V]) *Ring[V] {
 			h.Reset()
 			tokenBuffer = strconv.AppendUint(tokenBuffer[:0], i, 10) // monotonic integer
 			tokenBuffer = append(tokenBuffer, '=')                   // github.com/billhathaway/consistentHash uses this delimiter
-			tokenBuffer = id.Append(tokenBuffer)
+			tokenBuffer = medley.Append(tokenBuffer, object)
 
 			// based on benchmarking, one big write to the hash is faster
 			// than individual writes.

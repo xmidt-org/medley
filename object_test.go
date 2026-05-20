@@ -4,300 +4,89 @@
 package medley
 
 import (
-	"bytes"
-	"iter"
 	"slices"
-	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
-// ObjectTestSuite holds common infrastructure for testing Objects of
-// any kind.
-type ObjectTestSuite[C any] struct {
-	suite.Suite
+func TestAppend(t *testing.T) {
+	const testValue = "here is a test value"
+
+	t.Run("ByteSlice", func(t *testing.T) {
+		object := []byte(testValue)
+		var dst []byte
+		dst = Append(dst, object)
+		assert.Equal(t, object, dst)
+	})
+
+	t.Run("CustomByteSlice", func(t *testing.T) {
+		type Custom []byte
+		object := Custom(testValue)
+		var dst []byte
+		dst = Append(dst, object)
+		assert.Equal(t, []byte(object), dst)
+	})
+
+	t.Run("String", func(t *testing.T) {
+		object := testValue
+		var dst []byte
+		dst = Append(dst, object)
+		assert.Equal(t, []byte(object), dst)
+	})
+
+	t.Run("CustomString", func(t *testing.T) {
+		type Custom string
+		object := Custom(testValue)
+		var dst []byte
+		dst = Append(dst, object)
+		assert.Equal(t, []byte(object), dst)
+	})
 }
 
-// assertLen verifies that Object.Len behaves correctly.
-func (suite *ObjectTestSuite[C]) assertLen(expectedLen int, obj Object) {
-	suite.Equal(expectedLen, obj.Len())
-	buf := obj.Append([]byte{})
-	suite.Equal(expectedLen, len(buf))
-	suite.Equal(obj.b, buf)
-}
-
-// assertToHash32 verifies that a lifecycle involving the object's ToHash
-// works correctly with a Hash32.
-func (suite *ObjectTestSuite[C]) assertToHash(obj Object) {
-	var buffer bytes.Buffer
-	obj.ToHash(&buffer)
-	if obj.Len() == 0 {
-		suite.Zero(buffer.Len())
-	} else {
-		suite.Equal(obj.b, buffer.Bytes())
-	}
-}
-
-// assertWriteTo verifies that WriterTo behaves correct for the given object.
-func (suite *ObjectTestSuite[C]) assertWriteTo(obj Object) {
-	var buffer bytes.Buffer
-	n, err := obj.WriteTo(&buffer)
-	suite.Equal(obj.Len(), int(n))
-	suite.NoError(err)
-}
-
-type arbitraryLengthTestCase[C []byte | string] struct {
-	name     string
-	contents C
-}
-
-// ArbitraryLengthObjectTestSuite holds common infrastructure for Objects whose
-// length can vary.
-type ArbitraryLengthObjectTestSuite[C []byte | string] struct {
-	ObjectTestSuite[C]
-
-	testCases []arbitraryLengthTestCase[C]
-}
-
-type BytesTestSuite struct {
-	ArbitraryLengthObjectTestSuite[[]byte]
-}
-
-func (suite *BytesTestSuite) SetupSuite() {
-	suite.testCases = []arbitraryLengthTestCase[[]byte]{
-		{
-			name: "nil",
-		},
-		{
-			name:     "empty",
-			contents: []byte{},
-		},
-		{
-			name:     "1",
-			contents: []byte{123},
-		},
-		{
-			name:     "5",
-			contents: []byte{12, 78, 191, 45, 254},
-		},
-		{
-			name: "20",
-			contents: []byte{
-				56, 143, 90, 178, 1,
-				67, 23, 83, 217, 198,
-				194, 4, 17, 54, 32,
-				235, 209, 11, 78, 176,
-			},
-		},
-	}
-}
-
-func (suite *BytesTestSuite) TestLen() {
-	for _, testCase := range suite.testCases {
-		suite.Run(testCase.name, func() {
-			obj := Bytes(testCase.contents)
-			suite.assertLen(len(testCase.contents), obj)
-		})
-	}
-}
-
-func (suite *BytesTestSuite) TestToHash() {
-	for _, testCase := range suite.testCases {
-		suite.Run(testCase.name, func() {
-			obj := Bytes(testCase.contents)
-			suite.assertToHash(obj)
-		})
-	}
-}
-
-func (suite *BytesTestSuite) TestWriteTo() {
-	for _, testCase := range suite.testCases {
-		suite.Run(testCase.name, func() {
-			obj := Bytes(testCase.contents)
-			suite.assertWriteTo(obj)
-		})
-	}
-}
-
-func TestBytes(t *testing.T) {
-	suite.Run(t, new(BytesTestSuite))
-}
-
-type StringTestSuite struct {
-	ArbitraryLengthObjectTestSuite[string]
-}
-
-func (suite *StringTestSuite) SetupSuite() {
-	suite.testCases = []arbitraryLengthTestCase[string]{
-		{
-			name: "uninitialized",
-		},
-		{
-			name:     "empty",
-			contents: "",
-		},
-		{
-			name:     "1",
-			contents: "a",
-		},
-		{
-			name:     strconv.Itoa(len("chair")),
-			contents: "chair",
-		},
-		{
-			name:     strconv.Itoa(len("the quick brown fox")),
-			contents: "the quick brown fox",
-		},
-	}
-}
-
-func (suite *StringTestSuite) TestLen() {
-	for _, testCase := range suite.testCases {
-		suite.Run(testCase.name, func() {
-			obj := String(testCase.contents)
-			suite.assertLen(len(testCase.contents), obj)
-		})
-	}
-}
-
-func (suite *StringTestSuite) TestToHash() {
-	for _, testCase := range suite.testCases {
-		suite.Run(testCase.name, func() {
-			obj := String(testCase.contents)
-			suite.assertToHash(obj)
-		})
-	}
-}
-
-func (suite *StringTestSuite) TestWriteTo() {
-	for _, testCase := range suite.testCases {
-		suite.Run(testCase.name, func() {
-			obj := String(testCase.contents)
-			suite.assertWriteTo(obj)
-		})
-	}
-}
-
-func TestString(t *testing.T) {
-	suite.Run(t, new(StringTestSuite))
-}
-
-// ObjectSequenceTestSuite holds common infrastructure for testing sequences of
-// hashable objects produced by Objectify and its variants.
-type ObjectSequenceTestSuite[V comparable] struct {
-	suite.Suite
-}
-
-// assertSequence verifies that the actual Objectify-style sequence visits each of the expected
-// elements in proper order.
-func (suite *ObjectSequenceTestSuite[V]) assertSequence(expectedCount int, verify Objecter[V], expected iter.Seq[V], actual iter.Seq2[Object, V]) {
-	expectedNext, expectedStop := iter.Pull(expected)
-	defer expectedStop()
-
-	actualNext, actualStop := iter.Pull2(actual)
-	defer actualStop()
-
-	actualCount := 0
-	for expected, ok := expectedNext(); ok; expected, ok = expectedNext() {
-		actualObject, actual, ok := actualNext()
-		suite.Require().True(ok)
-
-		actualCount++
-		suite.Equal(expected, actual)
-		suite.Equal(
-			verify(actual).b,
-			actualObject.b,
-		)
-	}
-
-	suite.Equal(expectedCount, actualCount)
-}
-
-// assertSlice verifies that the actual Objectify-style sequence visits each of the expected
-// slice elements in proper order.
-func (suite *ObjectSequenceTestSuite[V]) assertSlice(verify Objecter[V], expected []V, actual iter.Seq2[Object, V]) {
-	actualNext, actualStop := iter.Pull2(actual)
-	defer actualStop()
-
-	for i := 0; i < len(expected); i++ {
-		expected := expected[i]
-
-		actualObject, actual, ok := actualNext()
-		suite.Require().True(ok)
-
-		suite.Equal(expected, actual)
-		suite.Equal(
-			verify(actual).b,
-			actualObject.b,
-		)
-	}
-}
-
-// assertEarlyReturn verifies that the yield function works correctly and will
-// allow a for loop to break early.
-func (suite *ObjectSequenceTestSuite[V]) assertEarlyReturn(expectedFirstObject Object, expectedFirstValue V, actual iter.Seq2[Object, V]) {
-	iterations := 0
-	for obj, value := range actual {
-		suite.Require().Zero(iterations)
-		suite.Equal(expectedFirstObject.b, obj.b)
-		suite.Equal(expectedFirstValue, value)
-		iterations++
-		break
-	}
-
-	suite.Equal(iterations, 1)
-}
-
-// ObjectifyTestSuite tests the generic Objectify and ObjectifySlice functions.
+// ObjectifyTestSuite tests the generic Objectify function.
 type ObjectifyTestSuite struct {
-	ObjectSequenceTestSuite[string]
+	suite.Suite
 }
 
 func (suite *ObjectifyTestSuite) TestSequence() {
-	testValues := slices.Values([]string{"one", "two", "three"})
+	type server struct {
+		hostName string
+		port     int
+	}
 
-	suite.assertSequence(
-		3,
-		String,
-		testValues,
-		Objectify(
-			String,
-			testValues,
-		),
-	)
-}
+	objecter := func(s *server) string { return s.hostName }
 
-func (suite *ObjectifyTestSuite) TestSlice() {
-	testValues := []string{"one", "two", "three"}
+	var servers = []*server{
+		{"host1.something.net", 1111},
+		{"host2.something.net", 2222},
+		{"host3.something.net", 3333},
+	}
 
-	suite.assertSlice(
-		String,
-		testValues,
-		ObjectifySlice(
-			String,
-			testValues,
-		),
-	)
-}
+	suite.Run("Iteration", func() {
+		var i int
+		for object, value := range Objectify(objecter, slices.Values(servers)) {
+			suite.Require().Less(i, len(servers))
+			suite.Equal(servers[i].hostName, object)
+			suite.Equal(servers[i], value)
+			i++
+		}
 
-func (suite *ObjectifyTestSuite) TestEarlyReturn() {
-	suite.Run("Sequence", func() {
-		testValues := []string{"one", "two", "three"}
-		suite.assertEarlyReturn(
-			String("one"),
-			"one",
-			Objectify(String, slices.Values(testValues)),
-		)
+		suite.Equal(len(servers), i)
 	})
 
-	suite.Run("Slice", func() {
-		testValues := []string{"one", "two", "three"}
-		suite.assertEarlyReturn(
-			String("one"),
-			"one",
-			ObjectifySlice(String, testValues),
-		)
+	suite.Run("EarlyReturn", func() {
+		var i int
+		for object, value := range Objectify(objecter, slices.Values(servers)) {
+			suite.Require().Zero(i)
+			suite.Equal(servers[i].hostName, object)
+			suite.Equal(servers[i], value)
+			i++
+			break
+		}
+
+		suite.Equal(1, i)
 	})
 }
 
@@ -305,48 +94,41 @@ func TestObjectify(t *testing.T) {
 	suite.Run(t, new(ObjectifyTestSuite))
 }
 
+// StringifyTestSuite tests the Stringify function.
 type StringifyTestSuite struct {
-	ObjectSequenceTestSuite[string]
+	suite.Suite
 }
 
 func (suite *StringifyTestSuite) TestSequence() {
-	testValues := slices.Values([]string{"one", "two", "three"})
+	var hostNames = []string{
+		"host1.something.net",
+		"host2.something.net",
+		"host3.something.net",
+	}
 
-	suite.assertSequence(
-		3,
-		String,
-		testValues,
-		Stringify(testValues),
-	)
-}
+	suite.Run("Iteration", func() {
+		var i int
+		for object, value := range Stringify(slices.Values(hostNames)) {
+			suite.Require().Less(i, len(hostNames))
+			suite.Equal(hostNames[i], object)
+			suite.Equal(hostNames[i], value)
+			i++
+		}
 
-func (suite *StringifyTestSuite) TestSlice() {
-	testValues := []string{"one", "two", "three"}
-
-	suite.assertSlice(
-		String,
-		testValues,
-		StringifySlice(testValues),
-	)
-}
-
-func (suite *StringifyTestSuite) TestEarlyReturn() {
-	suite.Run("Sequence", func() {
-		testValues := []string{"one", "two", "three"}
-		suite.assertEarlyReturn(
-			String("one"),
-			"one",
-			Stringify(slices.Values(testValues)),
-		)
+		suite.Equal(len(hostNames), i)
 	})
 
-	suite.Run("Slice", func() {
-		testValues := []string{"one", "two", "three"}
-		suite.assertEarlyReturn(
-			String("one"),
-			"one",
-			StringifySlice(testValues),
-		)
+	suite.Run("EarlyReturn", func() {
+		var i int
+		for object, value := range Stringify(slices.Values(hostNames)) {
+			suite.Require().Zero(i)
+			suite.Equal(hostNames[i], object)
+			suite.Equal(hostNames[i], value)
+			i++
+			break
+		}
+
+		suite.Equal(1, i)
 	})
 }
 

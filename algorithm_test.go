@@ -58,13 +58,6 @@ func (suite *AlgorithmTestSuite[HR]) TestSumString() {
 	suite.Equal(expected, actual)
 }
 
-func (suite *AlgorithmTestSuite[HR]) TestSumObject() {
-	obj := Bytes(suite.testBytes)
-	actual := suite.ctor().SumObject(obj)
-	expected := suite.sum(obj.b)
-	suite.Equal(expected, actual)
-}
-
 // asSum32 returns a low-level 32-bit Sum function using a hash.Hash32.
 // Used for testing to get around: https://github.com/spaolacci/murmur3/issues/34
 func asSum32(ctor func() hash.Hash32) func([]byte) uint32 {

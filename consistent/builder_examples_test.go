@@ -20,19 +20,18 @@ func ExampleBuilder_simple() {
 	}
 
 	// use the default algorithm and vnodes
-	builder := new(Builder[string]).
-		ExpectedValues((len(hostNames)))
+	builder := new(Builder[string, string])
 
 	// use medley.Objectify to use the host name itself as the hash object
 	ring := builder.Build(
-		medley.Objectify(
-			medley.String,
+		len(hostNames), // hint for preallocation
+		medley.Stringify(
 			slices.Values(hostNames),
 		),
 	)
 
 	// now we can assign clients to nodes
-	hostName := ring.Nearest(medley.String("aclient"))
+	hostName := ring.NearestString("aclient")
 	fmt.Println(hostName)
 
 	// Output:
@@ -57,20 +56,20 @@ func ExampleBuilder_struct() {
 
 	// use a more interesting builder
 	// you can use Builder[service] if you prefer
-	builder := new(Builder[*service]).
+	builder := new(Builder[string, *service]).
 		VNodes(10).
-		Algorithm(medley.FNV64a()).
-		ExpectedValues((len(services)))
+		Algorithm(medley.FNV64a())
 
 	ring := builder.Build(
+		len(services), // hint for preallocation
 		medley.Objectify(
-			func(s *service) medley.Object { return medley.String(s.hostName) },
+			func(s *service) string { return s.hostName },
 			slices.Values(services),
 		),
 	)
 
 	// now we can obtain a *service for a client
-	svc := ring.Nearest(medley.String("aclient"))
+	svc := ring.NearestString("aclient")
 	fmt.Println(svc.hostName)
 	fmt.Println(svc.port)
 	fmt.Println(svc.favoriteThing)

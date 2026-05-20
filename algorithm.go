@@ -48,11 +48,6 @@ func (alg *Algorithm[HR]) SumString(v string) HR {
 	)
 }
 
-// SumObject returns the Sum of an object.
-func (alg *Algorithm[HR]) SumObject(obj Object) HR {
-	return alg.sum(obj.b)
-}
-
 // NewAlgorithm constructs a medley algorithm of a particular result size. Algorithms are immutable
 // and safe for concurrent access.
 //

@@ -5,6 +5,7 @@ package benchmarks
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -75,17 +76,18 @@ func BenchmarkSingleHashWrite(b *testing.B) {
 
 // BenchmarkMedleyRingCreationUsingExpectedValues tests using a Builder to create
 // a Ring with the ExpectedValues hint to preallocate the ring.
-func BenchmarkMedleyRingCreationUsingExpectedValues(b *testing.B) {
+func BenchmarkMedleyRingCreationUsingPreallocation(b *testing.B) {
 	for _, benchmarkCase := range benchmarkCases {
 		b.Run(benchmarkCase.name, func(b *testing.B) {
-			builder := new(consistent.Builder[string]).
-				VNodes(benchmarkCase.vnodes).
-				ExpectedValues(len(benchmarkCase.hostNames))
+			builder := new(consistent.Builder[string, string]).
+				VNodes(benchmarkCase.vnodes)
 
-			values := medley.StringifySlice(benchmarkCase.hostNames)
+			values := medley.Stringify(
+				slices.Values(benchmarkCase.hostNames),
+			)
 
 			for b.Loop() {
-				builder.Build(values)
+				builder.Build(len(benchmarkCase.hostNames), values)
 			}
 		})
 	}
@@ -96,13 +98,15 @@ func BenchmarkMedleyRingCreationUsingExpectedValues(b *testing.B) {
 func BenchmarkMedleyRingCreationNoExpectedValues(b *testing.B) {
 	for _, benchmarkCase := range benchmarkCases {
 		b.Run(benchmarkCase.name, func(b *testing.B) {
-			builder := new(consistent.Builder[string]).
+			builder := new(consistent.Builder[string, string]).
 				VNodes(benchmarkCase.vnodes)
 
-			values := medley.StringifySlice(benchmarkCase.hostNames)
+			values := medley.Stringify(
+				slices.Values(benchmarkCase.hostNames),
+			)
 
 			for b.Loop() {
-				builder.Build(values)
+				builder.Build(0, values)
 			}
 		})
 	}
